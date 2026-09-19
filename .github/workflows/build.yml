@@ -8,6 +8,11 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Publish a release under this tag (e.g. v0.6). Leave empty to only build.'
+        required: false
+        default: ''
 
 jobs:
   apk:
@@ -99,9 +104,10 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Publish release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.release_tag != ''
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
           set -euo pipefail
           cat > notes.md <<'NOTES'
@@ -126,12 +132,18 @@ jobs:
           в приложенном `signature.txt`.
           NOTES
 
-          TAG="${GITHUB_REF_NAME}"
+          # A tag push names itself; a manual run says which tag to cut, and
+          # gh creates that tag on this commit.
+          TAG="${RELEASE_TAG:-}"
+          if [ -z "$TAG" ]; then
+            TAG="${GITHUB_REF_NAME}"
+          fi
           if gh release view "$TAG" > /dev/null 2>&1; then
             gh release upload "$TAG" "${{ steps.apk.outputs.path }}" signature.txt --clobber
           else
             gh release create "$TAG" \
               "${{ steps.apk.outputs.path }}" signature.txt \
+              --target "${GITHUB_SHA}" \
               --title "Q50 GTR+ $TAG" \
               --notes-file notes.md
           fi
