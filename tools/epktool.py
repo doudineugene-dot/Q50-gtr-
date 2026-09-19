@@ -124,13 +124,20 @@ def iter_blocks(data):
     off = ENVELOPE
     n = len(data)
     while off + NAME_FIELD + 4 <= n:
-        name = data[off:off + NAME_FIELD].rstrip(b'\x00').decode('ascii', 'replace')
+        raw_name = data[off:off + NAME_FIELD]
+        name = raw_name.rstrip(b'\x00').decode('ascii', 'replace')
         off += NAME_FIELD
         (blen,) = struct.unpack_from('>i', data, off)
         off += 4
         ct = data[off:off + blen]
         yield name, blen, ct, off
         off += blen
+
+
+def name_field_clean(raw_name):
+    """Поле имени — ASCIIZ на 128 байт: после терминатора только нули."""
+    text = raw_name.rstrip(b'\x00')
+    return not any(raw_name[len(text):]) and b'\x00' not in text
 
 
 # ---- команды ---------------------------------------------------------------
@@ -238,6 +245,11 @@ def cmd_verify(args):
           h['key_size'] == args.expect_key_size, str(h['key_size']))
     check('добивка ключа — нули', h['key_padding_clean'])
 
+    check('поле ключа = %d байт' % KEY_FIELD,
+          len(data) >= OFF_KEY + KEY_FIELD, str(len(data)))
+    check('keySize помещается в поле ключа', h['key_size'] <= KEY_FIELD,
+          str(h['key_size']))
+
     blocks = list(iter_blocks(data))[:h['block_count']]
     check('блоки присутствуют', len(blocks) == h['block_count'],
           '%d из %d' % (len(blocks), h['block_count']))
@@ -247,6 +259,9 @@ def cmd_verify(args):
             check('блок #%d: имя == %r' % (i, args.expect_name),
                   name == args.expect_name, repr(name))
         check('блок #%d: имя ASCII' % i, all(ord(c) < 128 for c in name), repr(name))
+        raw = data[_off - 4 - NAME_FIELD:_off - 4]
+        check('блок #%d: поле имени = %d байт, добивка нулями' % (i, NAME_FIELD),
+              len(raw) == NAME_FIELD and name_field_clean(raw))
         check('блок #%d: длина шифротекста кратна 16' % i, blen % 16 == 0, str(blen))
         check('блок #%d: шифротекст непустой' % i, blen > 0, str(blen))
         check('блок #%d: прочитан целиком' % i, len(ct) == blen,

@@ -115,6 +115,68 @@ jobs:
             --expect-blocks 1 \
             --expect-key-size 128
 
+      - name: Build provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          # Записываем SHA самого тега, а не коммита сборки: расхождение между
+          # ними — это ровно то, что провенанс должен показывать.
+          TAG="${RELEASE_TAG:-}"
+          if [ -z "$TAG" ] && [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            TAG="${GITHUB_REF_NAME}"
+          fi
+          if [ -n "$TAG" ]; then
+            PROV_TAG_SHA=$(gh api "repos/${GITHUB_REPOSITORY}/git/refs/tags/${TAG}" \
+              --jq '.object.sha' 2>/dev/null || echo "(tag ${TAG} not found)")
+            export PROV_TAG_SHA
+            echo "tag ${TAG} -> ${PROV_TAG_SHA}"
+          fi
+          ./provenance.sh
+
+      - name: Release preflight
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.release_tag != ''
+        run: |
+          set -euo pipefail
+
+          MODE=$(cat artifact/signing-mode.txt)
+          echo "SIGNING_MODE=${MODE}"
+
+          # Релиз, подписанный одноразовым ключом, невозможно обновить поверх:
+          # следующая сборка даст другой сертификат и установка обновления
+          # будет отклонена. Для CI-артефакта это терпимо, для публикации нет.
+          if [ "$MODE" != "persistent" ]; then
+            echo "::error::release требует постоянного ключа подписи (SIGNING_MODE=${MODE})."
+            echo "Заведите секреты репозитория Q50_KEYSTORE_BASE64, Q50_KEY_ALIAS," >&2
+            echo "Q50_KEY_PASS — см. keys/README.md. Публикация отменена." >&2
+            exit 1
+          fi
+
+          ACTUAL=$(cat artifact/apk-signer-cert.sha256)
+          echo "Signer certificate SHA-256: ${ACTUAL}"
+
+          # Первая строка файла, которая не комментарий и не пуста.
+          EXPECTED=$(grep -vE '^[[:space:]]*(#|$)' release-signing-cert.sha256 \
+            | head -1 | tr -d '[:space:]' || true)
+
+          if [ -z "$EXPECTED" ]; then
+            echo "::error::в release-signing-cert.sha256 не задан ожидаемый сертификат."
+            echo "Запишите в него эту строку и закоммитьте:" >&2
+            echo "  ${ACTUAL}" >&2
+            exit 1
+          fi
+
+          if [ "$ACTUAL" != "$EXPECTED" ]; then
+            echo "::error::сертификат подписи не совпадает с ожидаемым."
+            echo "  ожидался: ${EXPECTED}" >&2
+            echo "  получен:  ${ACTUAL}" >&2
+            echo "Обновление поверх установленной версии не встанет. Публикация отменена." >&2
+            exit 1
+          fi
+
+          echo "Сертификат подписи совпадает с ожидаемым."
+
       - name: APK + EPK summary
         run: |
           set -euo pipefail
@@ -138,6 +200,9 @@ jobs:
             echo "| EPK | \`${EPK_NAME}\` |"
             echo "| размер EPK | $(stat -c%s "artifact/${EPK_NAME}") байт |"
             echo "| SHA-256 EPK | \`$(cut -d' ' -f1 "artifact/${EPK_NAME}.sha256")\` |"
+            echo "| SIGNING_MODE | \`$(cat artifact/signing-mode.txt)\` |"
+            echo "| Signer certificate DN | $(grep -m1 '^Signer #1 certificate DN:' artifact/signature.txt | sed 's/^Signer #1 certificate DN: //') |"
+            echo "| Signer certificate SHA-256 | \`$(cat artifact/apk-signer-cert.sha256)\` |"
             echo ""
             echo "**EPK**"
             echo ""
@@ -203,7 +268,8 @@ jobs:
           fi
           ASSETS="artifact/${APK_NAME} artifact/${APK_NAME}.sha256 \
                   artifact/${EPK_NAME} artifact/${EPK_NAME}.sha256 \
-                  artifact/signature.txt artifact/badging.txt artifact/epk-info.txt"
+                  artifact/signature.txt artifact/badging.txt artifact/epk-info.txt \
+                  artifact/BUILD-PROVENANCE.txt"
           if gh release view "$TAG" > /dev/null 2>&1; then
             gh release upload "$TAG" $ASSETS --clobber
             gh release edit "$TAG" --notes-file notes.md
@@ -227,5 +293,6 @@ jobs:
             artifact/signature.txt
             artifact/badging.txt
             artifact/epk-info.txt
+            artifact/BUILD-PROVENANCE.txt
           if-no-files-found: error
           retention-days: 90
