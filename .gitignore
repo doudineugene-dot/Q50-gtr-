@@ -1,0 +1,10 @@
+build/
+artifact/
+.cache/
+local.properties
+*.iml
+.idea/
+*.apk
+*.ap_
+*.keystore
+*.jks
