@@ -89,6 +89,27 @@ jobs:
               echo "  /user                -> HTTP ${CODE_USER}"
               echo "  /repos/${GITHUB_REPOSITORY} -> HTTP ${CODE_REPO}"
 
+              # Тип токена по префиксу — не секрет и сразу отвечает на вопрос,
+              # какую из двух форм прав вообще нужно смотреть.
+              case "$BOOTSTRAP_TOKEN" in
+                github_pat_*) echo "  тип токена           -> fine-grained" ;;
+                ghp_*)        echo "  тип токена           -> classic" ;;
+                gho_*|ghu_*)  echo "  тип токена           -> OAuth/пользовательский" ;;
+                *)            echo "  тип токена           -> неизвестный формат" ;;
+              esac
+
+              # GitHub сам говорит, что у токена есть и что требуется.
+              HDRS=$(curl -sS -D - -o /dev/null \
+                -H "Authorization: Bearer ${BOOTSTRAP_TOKEN}" \
+                -H "Accept: application/vnd.github+json" \
+                "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/secrets/public-key" \
+                | tr -d '\r')
+              echo "  права у токена (x-oauth-scopes):"
+              echo "$HDRS" | grep -i '^x-oauth-scopes:' | sed 's/^/    /' || echo "    (заголовок не пришёл)"
+              echo "  требуется (x-accepted-github-permissions):"
+              echo "$HDRS" | grep -i '^x-accepted-github-permissions:' | sed 's/^/    /' \
+                || echo "    (заголовок не пришёл)"
+
               echo "::error::Q50_BOOTSTRAP_TOKEN не даёт доступа к секретам (HTTP ${CODE_BOOT})."
               if [ "$CODE_USER" = "401" ]; then
                 echo "ДИАГНОЗ: токен недействителен — скопирован не полностью," >&2
@@ -103,8 +124,10 @@ jobs:
                 echo "  fine-grained: Permissions -> Repository permissions ->" >&2
                 echo "                Secrets -> Read and write" >&2
                 echo "  classic:      отметить scope 'repo'" >&2
-                echo "После изменения прав нужен НОВЫЙ токен: у выданного права" >&2
-                echo "задним числом не расширяются." >&2
+                echo "Права fine-grained токена можно отредактировать, и сама" >&2
+                echo "строка токена при этом не меняется — секрет обновлять не" >&2
+                echo "нужно. Проверьте, что Secrets выставлен в разделе" >&2
+                echo "Repository permissions, а не в Account permissions." >&2
               fi
               exit 1
             fi
