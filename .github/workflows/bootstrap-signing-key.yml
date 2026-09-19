@@ -72,10 +72,40 @@ jobs:
             export GH_TOKEN="$DEFAULT_TOKEN"
           elif [ -n "${BOOTSTRAP_TOKEN:-}" ]; then
             CODE_BOOT=$(probe "$BOOTSTRAP_TOKEN")
-            echo "Q50_BOOTSTRAP_TOKEN -> HTTP ${CODE_BOOT}"
+            echo "Q50_BOOTSTRAP_TOKEN -> secrets/public-key HTTP ${CODE_BOOT}"
             if [ "$CODE_BOOT" != "200" ]; then
+              # 403 сам по себе не говорит, что именно не так: токен мог быть
+              # напечатан с опечаткой, не видеть репозиторий, или видеть его,
+              # но без права Secrets. Спрашиваем по очереди.
+              CODE_USER=$(curl -sS -o /dev/null -w "%{http_code}" \
+                -H "Authorization: Bearer ${BOOTSTRAP_TOKEN}" \
+                -H "Accept: application/vnd.github+json" \
+                "https://api.github.com/user")
+              CODE_REPO=$(curl -sS -o /dev/null -w "%{http_code}" \
+                -H "Authorization: Bearer ${BOOTSTRAP_TOKEN}" \
+                -H "Accept: application/vnd.github+json" \
+                "https://api.github.com/repos/${GITHUB_REPOSITORY}")
+
+              echo "  /user                -> HTTP ${CODE_USER}"
+              echo "  /repos/${GITHUB_REPOSITORY} -> HTTP ${CODE_REPO}"
+
               echo "::error::Q50_BOOTSTRAP_TOKEN не даёт доступа к секретам (HTTP ${CODE_BOOT})."
-              echo "Нужен токен с правом Secrets: Read and write на этот репозиторий." >&2
+              if [ "$CODE_USER" = "401" ]; then
+                echo "ДИАГНОЗ: токен недействителен — скопирован не полностью," >&2
+                echo "уже отозван или истёк. Создайте новый и обновите секрет." >&2
+              elif [ "$CODE_REPO" != "200" ]; then
+                echo "ДИАГНОЗ: токен действителен, но не видит этот репозиторий." >&2
+                echo "Для fine-grained токена: Repository access -> Only select" >&2
+                echo "repositories -> выбрать Q50-gtr-." >&2
+              else
+                echo "ДИАГНОЗ: токен действителен и видит репозиторий, но не имеет" >&2
+                echo "права на секреты." >&2
+                echo "  fine-grained: Permissions -> Repository permissions ->" >&2
+                echo "                Secrets -> Read and write" >&2
+                echo "  classic:      отметить scope 'repo'" >&2
+                echo "После изменения прав нужен НОВЫЙ токен: у выданного права" >&2
+                echo "задним числом не расширяются." >&2
+              fi
               exit 1
             fi
             export GH_TOKEN="$BOOTSTRAP_TOKEN"
