@@ -43,6 +43,27 @@ if grep "not protected by signature" "$OUT_DIR/signature.txt" | grep -qv "WARNIN
     fail "часть содержимого APK не покрыта подписью v1"
 fi
 
+# Отпечаток сертификата подписи — то, по чему будущие релизы узнают, что ключ
+# не подменили. Кладём его отдельным файлом, чтобы не разбирать signature.txt
+# в каждом следующем шаге.
+SIGNER_DN=$(grep -m1 "^Signer #1 certificate DN:" "$OUT_DIR/signature.txt" \
+    | sed 's/^Signer #1 certificate DN: //')
+SIGNER_SHA=$(grep -m1 "^Signer #1 certificate SHA-256 digest:" "$OUT_DIR/signature.txt" \
+    | sed 's/^Signer #1 certificate SHA-256 digest: //' | tr -d '[:space:]')
+
+[ -n "$SIGNER_SHA" ] || fail "не удалось прочитать SHA-256 сертификата подписи"
+
+printf '%s\n' "$SIGNER_SHA" > "$OUT_DIR/apk-signer-cert.sha256"
+
+# Режим подписи объявляет build.sh; сюда он доезжает файлом.
+SIGNING_MODE=$(cat build/signing-mode.txt 2>/dev/null || echo "unknown")
+printf '%s\n' "$SIGNING_MODE" > "$OUT_DIR/signing-mode.txt"
+
+echo
+echo "SIGNING_MODE=$SIGNING_MODE"
+echo "Signer certificate DN:         $SIGNER_DN"
+echo "Signer certificate SHA-256:    $SIGNER_SHA"
+
 # ------------------------------------------------------------------ badging
 
 say "aapt dump badging"

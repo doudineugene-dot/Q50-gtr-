@@ -18,9 +18,20 @@ BUILD_DIR="build"
 CACHE_DIR=".cache"
 ANDROID_JAR="$CACHE_DIR/android-2.3.3.jar"
 ANDROID_JAR_URL="https://repo1.maven.org/maven2/com/google/android/android/2.3.3/android-2.3.3.jar"
-KEYSTORE="${Q50_KEYSTORE:-$CACHE_DIR/q50gtr.keystore}"
 KEY_ALIAS="${Q50_KEY_ALIAS:-q50gtr}"
 KEY_PASS="${Q50_KEY_PASS:-q50gtrpass}"
+
+# Постоянный ключ приходит снаружи (в CI — из секретов репозитория). Без него
+# ключ генерируется здесь же и живёт ровно одну сборку: для проверок это
+# нормально, для публикуемого релиза — нет, поэтому режим объявляется явно и
+# записывается в файл, который читают дальнейшие шаги.
+if [ -n "${Q50_KEYSTORE:-}" ]; then
+    KEYSTORE="$Q50_KEYSTORE"
+    SIGNING_MODE="persistent"
+else
+    KEYSTORE="$CACHE_DIR/q50gtr.keystore"
+    SIGNING_MODE="temporary"
+fi
 
 UNSIGNED="$BUILD_DIR/$PKG_NAME-unsigned.apk"
 ALIGNED="$BUILD_DIR/$PKG_NAME-aligned.apk"
@@ -140,6 +151,10 @@ say "4/5 zipalign"
 zipalign -f 4 "$UNSIGNED" "$ALIGNED"
 
 say "5/5 apksigner: подпись v1"
+echo "SIGNING_MODE=$SIGNING_MODE"
+if [ "$SIGNING_MODE" = "persistent" ] && [ ! -f "$KEYSTORE" ]; then
+    die "задан Q50_KEYSTORE=$KEYSTORE, но файла нет"
+fi
 if [ ! -f "$KEYSTORE" ]; then
     echo "Создаю ключ: $KEYSTORE"
     keytool -genkeypair -noprompt \
@@ -167,4 +182,7 @@ apksigner sign \
 
 rm -f "$UNSIGNED" "$ALIGNED"
 
+printf '%s\n' "$SIGNING_MODE" > "$BUILD_DIR/signing-mode.txt"
+
 say "Готово: $OUTPUT ($(du -h "$OUTPUT" | cut -f1))"
+echo "SIGNING_MODE=$SIGNING_MODE"
