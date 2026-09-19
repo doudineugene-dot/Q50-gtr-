@@ -49,10 +49,6 @@ android {
 
     packagingOptions {
         exclude 'META-INF/*.kotlin_module'
-        // AGP drops this marker into META-INF, where the v1/JAR signature
-        // cannot cover it. Nothing on the car reads it, and leaving it in
-        // makes apksigner warn about an unprotected entry.
-        exclude 'META-INF/com/android/build/gradle/app-metadata.properties'
     }
 }
 

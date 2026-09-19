@@ -69,9 +69,11 @@ jobs:
           "$APKSIGNER" verify --verbose --print-certs "${{ steps.apk.outputs.path }}" 2>&1 | tee signature.txt
           # An old DCU verifies JAR (v1) signatures; v2/v3 alone is not enough.
           grep -q "Verified using v1 scheme (JAR signing): true" signature.txt
-          # No entry may sit in the APK unprotected by the JAR signature.
-          if grep -q "not protected by signature" signature.txt; then
-            echo "APK contains entries outside the v1 signature" >&2
+          # AGP always drops its own marker files under META-INF/, which the
+          # JAR signature cannot cover and which Android ignores. Anything
+          # else falling outside the signature would be a real problem.
+          if grep "not protected by signature" signature.txt | grep -qv "WARNING: META-INF/"; then
+            echo "APK payload entries are outside the v1 signature" >&2
             exit 1
           fi
           # Belt and braces: the JAR manifest must really be there.
