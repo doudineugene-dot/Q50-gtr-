@@ -3,7 +3,7 @@
 Дополнительная приборная панель для штатного головного устройства
 Infiniti Q50 2017 (InTouch / DCU Gen1).
 
-**Версия:** 0.6 · **Экран:** 840×480, landscape
+**Версия:** 0.6 · **Экран:** 840×480, landscape · **Android:** API 9 (2.3)
 
 > Совместимость с DCU ещё **не проверена**: приложение собирается и
 > подписывается, но на автомобиль пока не устанавливалось.
@@ -65,21 +65,55 @@ Infiniti Q50 2017 (InTouch / DCU Gen1).
 
 1. Actions → **Build APK** → Run workflow (или любой push в `main`).
 2. Artifact **`Q50-GTR-Plus-v0.6-APK`** со страницы завершённого run.
-3. Внутри: `Q50-GTR-Plus-v0.6.apk` и `signature.txt`.
+3. Внутри: `Q50-GTR-Plus-v0.6.apk`, `.sha256`, `signature.txt`, `badging.txt`.
 
-Workflow проверяет, что APK подписан **v1 (JAR signing)** — старый DCU
-проверяет именно её, одной v2/v3 недостаточно.
+### Почему не Gradle
+
+Android Gradle Plugin не поддерживает `minSdkVersion 9`. Поэтому сборка идёт
+классической цепочкой, как в проверенном на этом же головном устройстве
+проекте [q50dash](https://github.com/doudineugene-dot/q50):
+
+```
+aapt -> javac --release 7 -> d8 --min-api 9 -> zipalign -> apksigner
+```
+
+- `build.sh` — сборка. Компиляция против `android-2.3.3.jar` (API 9), так что
+  отсутствующий на Android 2.3 Android-API не пройдёт компиляцию.
+- `verify.sh` — проверки готового APK: подпись, `aapt dump badging`,
+  наличие `classes.dex`, отсутствие нативных библиотек, SHA-256.
+
+Оба скрипта запускаются и локально, если в `PATH` есть `aapt`, `zipalign`,
+`apksigner`, `d8` и JDK 8–17.
+
+### Совместимость
+
+| | |
+|---|---|
+| minSdkVersion | 9 (Android 2.3) |
+| targetSdkVersion | 10 |
+| Java | `--release 7` (байт-код, читаемый d8/dx под Dalvik) |
+| Зависимости | нет: ни AndroidX, ни support library, ни Kotlin |
+
+Из `java.*` используются только `Math`, `Float`, `Integer`, `String`,
+`StringBuilder` и `System.currentTimeMillis` — всё это есть в libcore
+Android 2.3. Компилятор это **не** проверяет (сигнатуры `java.*` берутся из
+JDK), поэтому за новыми зависимостями нужно следить вручную.
+
+Манифест повторяет подход q50dash: `uses-sdk 9/10`, разрешение
+`com.ygomi.permission.IVI_CAN_READ`, `ivi.isDistractive=false`,
+`ivi.supportDisplay=ALL`. Атрибутов новее API 9 (`android:exported`,
+`android:hardwareAccelerated`, `screenSize` в `configChanges`) нет.
 
 ### Подпись
 
-Release собирается стандартным debug-ключом, который генерируется прямо на
-раннере. В репозитории нет и не должно быть ни ключей, ни паролей. Для
-production-ключа нужно завести GitHub Secrets и отдельный `signingConfig`.
+Только **v1 (JAR signing)** — единственная схема, которую знает Android 2.3.
+v2 и v3 выключены явно, подпись делается с `--min-sdk-version 9`, и
+`verify.sh` падает, если схемы окажутся не такими.
 
-### Стек
-
-Gradle 7.6.4 · AGP 7.4.2 · JDK 17 (toolchain) · Java 8 source/target ·
-compileSdk 33 · minSdk 15 · targetSdk 28
+По умолчанию ключ генерируется на раннере при каждой сборке, поэтому новая
+версия не встанет поверх старой — предыдущую нужно удалить. Чтобы ключ был
+постоянным, заведите секреты репозитория `Q50_KEYSTORE_BASE64`,
+`Q50_KEY_ALIAS`, `Q50_KEY_PASS`. В репозитории ключей нет и быть не должно.
 
 ## EPK
 
