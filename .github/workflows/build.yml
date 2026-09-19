@@ -1,0 +1,89 @@
+name: Build APK
+
+on:
+  push:
+    branches:
+      - main
+      - 'claude/**'
+  workflow_dispatch:
+
+jobs:
+  apk:
+    name: Q50 GTR+ v0.6 APK
+    runs-on: ubuntu-latest
+
+    env:
+      BUILD_TOOLS: "33.0.2"
+      APK_NAME: "Q50-GTR-Plus-v0.6.apk"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install SDK packages
+        run: |
+          sdkmanager --install "platforms;android-33" "build-tools;${BUILD_TOOLS}" "platform-tools"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '7.6.4'
+
+      - name: Build release APK
+        run: gradle --no-daemon --stacktrace assembleRelease
+
+      - name: Locate and rename APK
+        id: apk
+        run: |
+          set -euo pipefail
+          BUILT=$(find app/build/outputs/apk/release -name '*.apk' | head -n 1)
+          if [ -z "$BUILT" ]; then
+            echo "No APK produced" >&2
+            exit 1
+          fi
+          mkdir -p artifact
+          cp "$BUILT" "artifact/${APK_NAME}"
+          echo "path=artifact/${APK_NAME}" >> "$GITHUB_OUTPUT"
+          ls -l artifact
+
+      - name: Verify APK signature
+        run: |
+          set -euo pipefail
+          APKSIGNER="${ANDROID_SDK_ROOT}/build-tools/${BUILD_TOOLS}/apksigner"
+          "$APKSIGNER" verify --verbose --print-certs "${{ steps.apk.outputs.path }}" | tee signature.txt
+          # An old DCU verifies JAR (v1) signatures; v2/v3 alone is not enough.
+          grep -q "Verified using v1 scheme (JAR signing): true" signature.txt
+          # Belt and braces: the JAR manifest must really be there.
+          unzip -l "${{ steps.apk.outputs.path }}" | grep -E "META-INF/.*\.(RSA|DSA|EC)$"
+
+      - name: APK summary
+        run: |
+          {
+            echo "### Q50 GTR+ v0.6"
+            echo ""
+            echo "- APK: \`${APK_NAME}\`"
+            echo "- Size: $(du -h "${{ steps.apk.outputs.path }}" | cut -f1)"
+            echo ""
+            echo '```'
+            cat signature.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Q50-GTR-Plus-v0.6-APK
+          path: |
+            artifact/*.apk
+            signature.txt
+          if-no-files-found: error
+          retention-days: 90
