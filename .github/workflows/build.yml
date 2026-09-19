@@ -19,7 +19,7 @@ on:
 
 jobs:
   apk:
-    name: Q50 GTR+ v0.6 APK (API 9)
+    name: Q50 GTR+ v0.6 APK + EPK (API 9)
     runs-on: ubuntu-latest
 
     # Only the tag/dispatch builds publish, and only to this repository.
@@ -29,6 +29,7 @@ jobs:
     env:
       BUILD_TOOLS: "33.0.2"
       APK_NAME: "Q50-GTR-Plus-v0.6.apk"
+      EPK_NAME: "Q50-GTR-Plus-v0.6.epk"
 
     steps:
       - name: Checkout
@@ -92,11 +93,34 @@ jobs:
       - name: Verify APK
         run: ./verify.sh "build/Q50-GTR-Plus-v0.6.apk"
 
-      - name: APK summary
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install cryptography
+        run: python3 -m pip install --disable-pip-version-check cryptography
+
+      - name: Build EPK
+        run: ./build-epk.sh
+
+      - name: Verify EPK
+        run: |
+          set -euo pipefail
+          # build-epk.sh уже проверяет контейнер; здесь проверка повторяется
+          # отдельным шагом, чтобы её провал был виден в списке шагов.
+          python3 tools/epktool.py verify "artifact/${EPK_NAME}" \
+            --expect-name q50gtr.apk \
+            --expect-type 2 \
+            --expect-blocks 1 \
+            --expect-key-size 128
+
+      - name: APK + EPK summary
         run: |
           set -euo pipefail
           BADGING="artifact/badging.txt"
           SUM=$(cut -d' ' -f1 "artifact/${APK_NAME}.sha256")
+          EPK_SUM=$(cut -d' ' -f1 "artifact/${EPK_NAME}.sha256")
           {
             echo "### Q50 GTR+ v0.6 — APK для InTouch / DCU Gen1"
             echo ""
@@ -109,8 +133,17 @@ jobs:
             echo "| targetSdkVersion | $(grep -oP "^targetSdkVersion:'\K[^']+" "$BADGING") |"
             echo "| application label | $(grep -oP "^application-label:'\K[^']+" "$BADGING") |"
             echo "| APK | \`${APK_NAME}\` |"
-            echo "| размер | $(stat -c%s "artifact/${APK_NAME}") байт |"
-            echo "| SHA-256 | \`${SUM}\` |"
+            echo "| размер APK | $(stat -c%s "artifact/${APK_NAME}") байт |"
+            echo "| SHA-256 APK | \`${SUM}\` |"
+            echo "| EPK | \`${EPK_NAME}\` |"
+            echo "| размер EPK | $(stat -c%s "artifact/${EPK_NAME}") байт |"
+            echo "| SHA-256 EPK | \`$(cut -d' ' -f1 "artifact/${EPK_NAME}.sha256")\` |"
+            echo ""
+            echo "**EPK**"
+            echo ""
+            echo '```'
+            cat artifact/epk-info.txt
+            echo '```'
             echo ""
             echo "**Permissions**"
             echo ""
@@ -131,6 +164,7 @@ jobs:
         run: |
           set -euo pipefail
           SUM=$(cut -d' ' -f1 "artifact/${APK_NAME}.sha256")
+          EPK_SUM=$(cut -d' ' -f1 "artifact/${EPK_NAME}.sha256")
           cat > notes.md <<NOTES
           Приборная панель Q50 GTR+ для штатного головного устройства
           Infiniti Q50 2017 (InTouch / DCU Gen1). Экран 840x480, landscape.
@@ -139,7 +173,12 @@ jobs:
           aapt / javac / d8 / zipalign / apksigner — без Gradle, AndroidX и
           сторонних библиотек. Подпись только v1 (JAR), как понимает DCU.
 
-          SHA-256: \`${SUM}\`
+          Для установки с USB на ГУ берите **\`${EPK_NAME}\`**: AppManager
+          не распознаёт голый APK, только контейнер .epk. Файл кладётся в
+          корень флешки FAT32 и выбирается в AppManager.
+
+          SHA-256 APK: \`${SUM}\`
+          SHA-256 EPK: \`${EPK_SUM}\`
 
           **Прежде чем ставить, прочитайте:**
 
@@ -152,13 +191,19 @@ jobs:
           - Если ключ подписи не задан секретами репозитория, он генерируется
             на раннере заново при каждой сборке, и новая версия не встанет
             поверх старой — предыдущую нужно сначала удалить.
+          - Контейнер .epk сложен по подтверждённому формату и проходит строгую
+            проверку раскладки. При этом **совместимость сертификата OBU с этим
+            конкретным DCU пока не подтверждена**: .epk примет только ГУ, в
+            прошивке которого лежит парный закрытый ключ.
           NOTES
 
           TAG="${RELEASE_TAG:-}"
           if [ -z "$TAG" ]; then
             TAG="${GITHUB_REF_NAME}"
           fi
-          ASSETS="artifact/${APK_NAME} artifact/${APK_NAME}.sha256 artifact/signature.txt artifact/badging.txt"
+          ASSETS="artifact/${APK_NAME} artifact/${APK_NAME}.sha256 \
+                  artifact/${EPK_NAME} artifact/${EPK_NAME}.sha256 \
+                  artifact/signature.txt artifact/badging.txt artifact/epk-info.txt"
           if gh release view "$TAG" > /dev/null 2>&1; then
             gh release upload "$TAG" $ASSETS --clobber
             gh release edit "$TAG" --notes-file notes.md
@@ -173,11 +218,14 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Q50-GTR-Plus-v0.6-APK
+          name: Q50-GTR-Plus-v0.6-InTouch
           path: |
             artifact/Q50-GTR-Plus-v0.6.apk
             artifact/Q50-GTR-Plus-v0.6.apk.sha256
+            artifact/Q50-GTR-Plus-v0.6.epk
+            artifact/Q50-GTR-Plus-v0.6.epk.sha256
             artifact/signature.txt
             artifact/badging.txt
+            artifact/epk-info.txt
           if-no-files-found: error
           retention-days: 90
