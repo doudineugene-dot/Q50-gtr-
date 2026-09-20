@@ -28,8 +28,8 @@ jobs:
 
     env:
       BUILD_TOOLS: "33.0.2"
-      APK_NAME: "Q50-GTR-Plus-v0.7.apk"
-      EPK_NAME: "Q50-GTR-Plus-v0.7.epk"
+      APK_NAME: "Q50-GTR-Plus-v0.7-live-test.apk"
+      EPK_NAME: "Q50-GTR-Plus-v0.7-live-test.epk"
 
     steps:
       - name: Checkout
@@ -91,7 +91,7 @@ jobs:
         run: ./build.sh
 
       - name: Verify APK
-        run: ./verify.sh "build/Q50-GTR-Plus-v0.7.apk"
+        run: ./verify.sh "build/Q50-GTR-Plus-v0.7-live-test.apk"
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -284,12 +284,12 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Q50-GTR-Plus-v0.7-InTouch
+          name: Q50-GTR-Plus-v0.7-live-test
           path: |
-            artifact/Q50-GTR-Plus-v0.7.apk
-            artifact/Q50-GTR-Plus-v0.7.apk.sha256
-            artifact/Q50-GTR-Plus-v0.7.epk
-            artifact/Q50-GTR-Plus-v0.7.epk.sha256
+            artifact/Q50-GTR-Plus-v0.7-live-test.apk
+            artifact/Q50-GTR-Plus-v0.7-live-test.apk.sha256
+            artifact/Q50-GTR-Plus-v0.7-live-test.epk
+            artifact/Q50-GTR-Plus-v0.7-live-test.epk.sha256
             artifact/signature.txt
             artifact/badging.txt
             artifact/epk-info.txt

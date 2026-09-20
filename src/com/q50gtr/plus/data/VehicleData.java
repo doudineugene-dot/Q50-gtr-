@@ -94,4 +94,37 @@ public final class VehicleData {
     public boolean anyDemo() {
         return rpm.isDemo() || boostActual.isDemo() || airFrontLeft.isDemo();
     }
+
+    /**
+     * Снимает все демо-значения при переходе в LIVE.
+     *
+     * Без этого числа, нарисованные демо-провайдером до появления связи,
+     * остались бы на приборке и выглядели бы как показания машины — ровно то,
+     * чего допускать нельзя.
+     */
+    public void clearDemoValues() {
+        Channel[] all = allChannels();
+        for (int i = 0; i < all.length; i++) {
+            if (all[i].isDemo()) {
+                all[i].setUnavailable();
+            }
+        }
+    }
+
+    /** Все каналы одним списком: для сброса демо и для диагностики. */
+    public Channel[] allChannels() {
+        Channel[] fixed = {
+                rpm, boostActual, boostTarget, coolantTemp, oilTemp, oilPressure,
+                intakeTemp, hpfpActual, hpfpTarget, afrB1, afrB2,
+                stftB1, stftB2, ltftB1, ltftB2, lpfp,
+                ignitionTiming, knockRetard, throttle, pedal, speed,
+                ivtIntakeB1, ivtExhaustB1, ivtIntakeB2, ivtExhaustB2,
+                transmissionTemp, transferCaseTemp, batteryVoltage, ambientTemp,
+                airFrontLeft, airFrontRight, airRearLeft, airRearRight, airTank,
+        };
+        Channel[] out = new Channel[fixed.length + knockIndex.length];
+        System.arraycopy(fixed, 0, out, 0, fixed.length);
+        System.arraycopy(knockIndex, 0, out, fixed.length, knockIndex.length);
+        return out;
+    }
 }

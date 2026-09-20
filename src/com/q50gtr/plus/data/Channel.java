@@ -18,6 +18,8 @@ public final class Channel {
     public static final int LIVE = 2;
     /** Was live, but no fresh frame arrived recently. */
     public static final int STALE = 3;
+    /** The transport is up but this channel reported a fault. */
+    public static final int ERROR = 4;
 
     public final String id;
     public final String label;
@@ -26,6 +28,8 @@ public final class Channel {
     private float value;
     private int state = UNAVAILABLE;
     private long updatedAtMs;
+    /** Who last wrote this channel: "INTOUCH", "ECUTEK", "AIRLIFT", "DEMO". */
+    private String source;
 
     public Channel(String id, String label, String unit) {
         this.id = id;
@@ -43,12 +47,46 @@ public final class Channel {
         set(value, LIVE, nowMs);
     }
 
+    /** Real value plus the transport that produced it. */
+    public void setLive(float value, String source, long nowMs) {
+        this.source = source;
+        set(value, LIVE, nowMs);
+    }
+
     public void setDemo(float value, long nowMs) {
+        source = "DEMO";
         set(value, DEMO, nowMs);
     }
 
     public void setUnavailable() {
         this.state = UNAVAILABLE;
+    }
+
+    /** Transport is connected but this channel faulted; never keep the number. */
+    public void setError(String source, long nowMs) {
+        this.source = source;
+        this.state = ERROR;
+        this.updatedAtMs = nowMs;
+    }
+
+    public String getSource() {
+        return source;
+    }
+
+    /** VALID / STALE / UNAVAILABLE / ERROR for the diagnostic overlay and logs. */
+    public String getStatusText() {
+        switch (state) {
+            case LIVE:
+                return "VALID";
+            case DEMO:
+                return "DEMO";
+            case STALE:
+                return "STALE";
+            case ERROR:
+                return "ERROR";
+            default:
+                return "UNAVAILABLE";
+        }
     }
 
     /** Drops LIVE to STALE once no frame has arrived for timeoutMs. */
@@ -66,9 +104,22 @@ public final class Channel {
         return state;
     }
 
-    /** True when there is a number worth drawing. */
+    /**
+     * True when there is a number worth drawing.
+     *
+     * ERROR is deliberately not drawable: a channel whose transport reported a
+     * fault must not keep showing the last number as if it were current.
+     */
     public boolean hasValue() {
-        return state != UNAVAILABLE;
+        return state != UNAVAILABLE && state != ERROR;
+    }
+
+    public boolean isLive() {
+        return state == LIVE;
+    }
+
+    public boolean isStale() {
+        return state == STALE;
     }
 
     public boolean isDemo() {

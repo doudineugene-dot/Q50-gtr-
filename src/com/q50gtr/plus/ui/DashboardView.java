@@ -8,6 +8,7 @@ import android.view.ViewConfiguration;
 
 import com.q50gtr.plus.data.DataHub;
 import com.q50gtr.plus.data.VehicleData;
+import com.q50gtr.plus.data.VehicleProbe;
 
 import java.util.Calendar;
 
@@ -20,7 +21,8 @@ import java.util.Calendar;
  */
 public final class DashboardView extends View implements Runnable {
 
-    private static final long FRAME_MS = 100L;
+    /** 20 кадров в секунду: шина отдаёт быстрые каналы на 20 Гц. */
+    private static final long FRAME_MS = 50L;
     private static final float SWIPE_COMMIT = 70f;
 
     private final Theme theme = new Theme();
@@ -32,6 +34,13 @@ public final class DashboardView extends View implements Runnable {
 
     /** Фиксированное время: нужно офлайн-рендеру, чтобы кадр был повторяемым. */
     private String clockOverride;
+
+    /* Скрытый диагностический оверлей: по умолчанию выключен, утверждённый
+     * визуал не трогает. Включается тройным касанием левого верхнего угла. */
+    private VehicleProbe probe;
+    private boolean diag;
+    private int cornerTaps;
+    private long cornerTapAtMs;
 
     /** Равномерный масштаб и отступы вписывания, считаются от размера вью. */
     private float scale = 1f;
@@ -56,6 +65,10 @@ public final class DashboardView extends View implements Runnable {
 
     public void setClockOverride(String hhmm) {
         clockOverride = hhmm;
+    }
+
+    public void setProbe(VehicleProbe p) {
+        probe = p;
     }
 
     public void start() {
@@ -114,6 +127,10 @@ public final class DashboardView extends View implements Runnable {
             }
         } else {
             drawScreen(canvas, d, page, 0f);
+        }
+
+        if (diag) {
+            DiagOverlay.draw(canvas, t, hub, probe, System.currentTimeMillis());
         }
 
         canvas.restoreToCount(base);
@@ -175,6 +192,7 @@ public final class DashboardView extends View implements Runnable {
                 downY = y;
                 dragX = 0f;
                 dragging = false;
+                checkDiagGesture(x, y);
                 return true;
 
             case MotionEvent.ACTION_MOVE: {
@@ -220,6 +238,25 @@ public final class DashboardView extends View implements Runnable {
 
             default:
                 return super.onTouchEvent(event);
+        }
+    }
+
+    /** Тройное касание левого верхнего угла в пределах секунды. */
+    private void checkDiagGesture(float x, float y) {
+        long now = System.currentTimeMillis();
+        if (x > 70f || y > 44f) {
+            cornerTaps = 0;
+            return;
+        }
+        if (now - cornerTapAtMs > 1000L) {
+            cornerTaps = 0;
+        }
+        cornerTapAtMs = now;
+        cornerTaps++;
+        if (cornerTaps >= 3) {
+            cornerTaps = 0;
+            diag = !diag;
+            invalidate();
         }
     }
 

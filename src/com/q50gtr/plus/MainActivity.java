@@ -5,7 +5,14 @@ import android.os.Bundle;
 import android.view.Window;
 import android.view.WindowManager;
 
+import android.util.Log;
+
+import com.q50gtr.plus.data.AirLiftLiveSource;
 import com.q50gtr.plus.data.DataHub;
+import com.q50gtr.plus.data.DemoDataProvider;
+import com.q50gtr.plus.data.EcuTekLiveSource;
+import com.q50gtr.plus.data.InTouchVehicleSource;
+import com.q50gtr.plus.data.VehicleProbe;
 import com.q50gtr.plus.ui.DashboardView;
 
 /**
@@ -18,9 +25,11 @@ import com.q50gtr.plus.ui.DashboardView;
 public final class MainActivity extends Activity {
 
     private static final String STATE_PAGE = "page";
+    private static final String TAG = "Q50GTR";
 
     private DataHub hub;
     private DashboardView dashboard;
+    private VehicleProbe probe;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -30,8 +39,19 @@ public final class MainActivity extends Activity {
         // stay awake while the car is running.
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
-        hub = new DataHub();
+        // Сначала зонд: на незнакомой прошивке важно записать факты до того,
+        // как что-то подключать. Он только читает.
+        probe = new VehicleProbe();
+        try {
+            probe.run(this);
+        } catch (Throwable t) {
+            Log.w(TAG, "зонд упал: " + t);
+        }
+
+        hub = new DataHub(new InTouchVehicleSource(this), new EcuTekLiveSource(),
+                new AirLiftLiveSource(), new DemoDataProvider());
         dashboard = new DashboardView(this, hub);
+        dashboard.setProbe(probe);
         setContentView(dashboard);
 
         if (savedInstanceState != null) {

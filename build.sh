@@ -11,7 +11,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 PKG_NAME="Q50-GTR-Plus"
-VERSION="0.7"
+VERSION="0.7-live-test"
 MIN_SDK=9
 
 BUILD_DIR="build"
