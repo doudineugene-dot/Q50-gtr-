@@ -14,7 +14,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
-VERSION="0.6"
+VERSION="0.7"
 APK="build/Q50-GTR-Plus-v$VERSION.apk"
 CERT="${Q50_OBU_CERT:-keys/obu_cert.pem}"
 OUT_DIR="artifact"

@@ -1,68 +1,46 @@
 package com.q50gtr.plus.ui;
 
-import android.graphics.Paint;
 import android.graphics.Canvas;
+import android.graphics.Paint;
 
 import com.q50gtr.plus.data.VehicleData;
 
 /**
- * Fuel side: rail pressure, both banks' AFR, short and long term trims, and
- * boost target against actual.
+ * Вкладка 2: давления топлива на циферблатах, коррекции и наддув — плитками.
  *
- * LPFP gets a cell of its own that says plainly it is not logged, rather than
- * a number nobody should trust.
+ * Прибор LPFP стоит на своём месте по макету, но значения у него нет и не
+ * будет, пока низкое давление не логируется: рисовать туда демо-цифру значит
+ * показывать водителю то, чего машина не измеряет.
  */
 public final class FuelPage implements Page {
-
-    private static final float MARGIN_X = 14f;
-    private static final float GAP = 9f;
 
     public String title() {
         return "ТОПЛИВО";
     }
 
     public void draw(Canvas c, Theme t, VehicleData d, float w, float h) {
-        float cw = (w - MARGIN_X * 2f - GAP * 3f) / 4f;
-        float ch = (h - 8f - 18f - GAP * 2f) / 3f;
-        float y0 = 8f;
-        float y1 = y0 + ch + GAP;
-        float y2 = y1 + ch + GAP;
+        float r = 128f;
+        float cy = 150f;
+        Gauges.dial(c, t, w / 2f - 168f, cy, r, d.lpfp,
+                0f, 10f, 1, 5, Float.NaN, "LPFP", "bar", 1f, 0);
+        Gauges.dial(c, t, w / 2f + 168f, cy, r, d.hpfpActual,
+                0f, 250f, 0, 5, Float.NaN, "HPFP", "bar", 1f, 0);
 
-        Gauges.tile(c, t, col(0, cw), y0, cw, ch, d.hpfpActual, 1, 0f, 25f, Float.NaN, Float.NaN);
-        Gauges.tile(c, t, col(1, cw), y0, cw, ch, d.hpfpTarget, 1, 0f, 25f, Float.NaN, Float.NaN);
-        Gauges.tile(c, t, col(2, cw), y0, cw, ch, d.boostActual, 2, -1f, 2f, Float.NaN, Float.NaN);
-        Gauges.tile(c, t, col(3, cw), y0, cw, ch, d.boostTarget, 2, -1f, 2f, Float.NaN, Float.NaN);
+        if (!d.lpfp.hasValue()) {
+            c.drawText("не логируется", w / 2f - 168f, cy + r * 0.72f,
+                    t.text(Theme.VALUE_DIM, 12f, Paint.Align.CENTER, false));
+        }
 
-        Gauges.tile(c, t, col(0, cw), y1, cw, ch, d.afrB1, 2, 10f, 16f, Float.NaN, Float.NaN);
-        Gauges.tile(c, t, col(1, cw), y1, cw, ch, d.afrB2, 2, 10f, 16f, Float.NaN, Float.NaN);
-        Gauges.tile(c, t, col(2, cw), y1, cw, ch, d.stftB1, 1, -25f, 25f, Float.NaN, Float.NaN, true, null);
-        Gauges.tile(c, t, col(3, cw), y1, cw, ch, d.stftB2, 1, -25f, 25f, Float.NaN, Float.NaN, true, null);
-
-        Gauges.tile(c, t, col(0, cw), y2, cw, ch, d.ltftB1, 1, -25f, 25f, Float.NaN, Float.NaN, true, null);
-        Gauges.tile(c, t, col(1, cw), y2, cw, ch, d.ltftB2, 1, -25f, 25f, Float.NaN, Float.NaN, true, null);
-
-        // LPFP: permanently unavailable in this EcuTek configuration.
-        Gauges.tile(c, t, col(2, cw), y2, cw, ch, d.lpfp, 0, 0f, 0f, Float.NaN, Float.NaN,
-                false, "LPFP");
-        c.drawText("не логируется", col(2, cw) + cw / 2f, y2 + ch - 16f,
-                t.text(Theme.DIM, 11f, Paint.Align.CENTER, false));
-
-        notesCell(c, t, col(3, cw), y2, cw, ch);
-    }
-
-    private static float col(int i, float cw) {
-        return MARGIN_X + i * (cw + GAP);
-    }
-
-    private void notesCell(Canvas c, Theme t, float x, float y, float w, float h) {
-        Gauges.panel(c, t, x, y, w, h);
-        c.drawText("ЧЕГО НЕТ В ЛОГЕ", x + 10f, y + 19f,
-                t.text(Theme.SILVER, 12f, Paint.Align.LEFT, false));
-        c.drawText("LPFP — низкое давление", x + 10f, y + 44f,
-                t.text(Theme.DIM, 12f, Paint.Align.LEFT, false));
-        c.drawText("Turbo Speed — не пишется", x + 10f, y + 62f,
-                t.text(Theme.DIM, 12f, Paint.Align.LEFT, false));
-        c.drawText("Значения не выдумываются", x + 10f, y + 84f,
-                t.text(Theme.ACCENT, 11f, Paint.Align.LEFT, false));
+        float tw = (w - 28f - 30f) / 4f;
+        float ty = h - 92f;
+        float th = 78f;
+        Gauges.tile(c, t, EnginePage.col(0, tw), ty, tw, th, Icons.FUEL, "КОРРЕКЦИЯ ТОПЛИВА",
+                d.stftB1, 1, "%", Float.NaN, Float.NaN);
+        Gauges.tile(c, t, EnginePage.col(1, tw), ty, tw, th, Icons.LAMBDA, "СМЕСЬ (AFR)",
+                d.afrB1, 1, "", Float.NaN, Float.NaN);
+        Gauges.tile(c, t, EnginePage.col(2, tw), ty, tw, th, Icons.TURBO, "НАДДУВ (ЦЕЛЬ)",
+                d.boostTarget, 1, "bar", Float.NaN, Float.NaN);
+        Gauges.tile(c, t, EnginePage.col(3, tw), ty, tw, th, Icons.TURBO, "НАДДУВ (ФАКТ)",
+                d.boostActual, 1, "bar", Float.NaN, Float.NaN);
     }
 }

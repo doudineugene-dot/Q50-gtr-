@@ -13,13 +13,13 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: 'Publish a release under this tag (e.g. v0.6). Leave empty to only build.'
+        description: 'Publish a release under this tag (e.g. v0.7). Leave empty to only build.'
         required: false
         default: ''
 
 jobs:
   apk:
-    name: Q50 GTR+ v0.6 APK + EPK (API 9)
+    name: Q50 GTR+ v0.7 APK + EPK (API 9)
     runs-on: ubuntu-latest
 
     # Only the tag/dispatch builds publish, and only to this repository.
@@ -28,8 +28,8 @@ jobs:
 
     env:
       BUILD_TOOLS: "33.0.2"
-      APK_NAME: "Q50-GTR-Plus-v0.6.apk"
-      EPK_NAME: "Q50-GTR-Plus-v0.6.epk"
+      APK_NAME: "Q50-GTR-Plus-v0.7.apk"
+      EPK_NAME: "Q50-GTR-Plus-v0.7.epk"
 
     steps:
       - name: Checkout
@@ -91,7 +91,7 @@ jobs:
         run: ./build.sh
 
       - name: Verify APK
-        run: ./verify.sh "build/Q50-GTR-Plus-v0.6.apk"
+        run: ./verify.sh "build/Q50-GTR-Plus-v0.7.apk"
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -184,7 +184,7 @@ jobs:
           SUM=$(cut -d' ' -f1 "artifact/${APK_NAME}.sha256")
           EPK_SUM=$(cut -d' ' -f1 "artifact/${EPK_NAME}.sha256")
           {
-            echo "### Q50 GTR+ v0.6 — APK для InTouch / DCU Gen1"
+            echo "### Q50 GTR+ v0.7 — APK для InTouch / DCU Gen1"
             echo ""
             echo "| | |"
             echo "|---|---|"
@@ -284,12 +284,12 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Q50-GTR-Plus-v0.6-InTouch
+          name: Q50-GTR-Plus-v0.7-InTouch
           path: |
-            artifact/Q50-GTR-Plus-v0.6.apk
-            artifact/Q50-GTR-Plus-v0.6.apk.sha256
-            artifact/Q50-GTR-Plus-v0.6.epk
-            artifact/Q50-GTR-Plus-v0.6.epk.sha256
+            artifact/Q50-GTR-Plus-v0.7.apk
+            artifact/Q50-GTR-Plus-v0.7.apk.sha256
+            artifact/Q50-GTR-Plus-v0.7.epk
+            artifact/Q50-GTR-Plus-v0.7.epk.sha256
             artifact/signature.txt
             artifact/badging.txt
             artifact/epk-info.txt

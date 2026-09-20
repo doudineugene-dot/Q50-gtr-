@@ -10,7 +10,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
-VERSION="0.6"
+VERSION="0.7"
 OUT_DIR="artifact"
 APK_NAME="Q50-GTR-Plus-v$VERSION.apk"
 EPK_NAME="Q50-GTR-Plus-v$VERSION.epk"

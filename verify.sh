@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 #
 # Проверки готового APK: подпись, badging, содержимое, контрольная сумма.
-# Складывает Q50-GTR-Plus-v0.6.apk, .sha256, signature.txt и badging.txt
+# Складывает Q50-GTR-Plus-v0.7.apk, .sha256, signature.txt и badging.txt
 # в каталог artifact/.
 #
 set -euo pipefail
 
 cd "$(dirname "$0")"
 
-APK="${1:-build/Q50-GTR-Plus-v0.6.apk}"
+APK="${1:-build/Q50-GTR-Plus-v0.7.apk}"
 MIN_SDK=9
 OUT_DIR="artifact"
 

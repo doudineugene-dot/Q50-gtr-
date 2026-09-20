@@ -4,7 +4,7 @@ import android.graphics.Canvas;
 
 import com.q50gtr.plus.data.VehicleData;
 
-/** RPM and boost on the dials, the four temperatures and pressures beside them. */
+/** Вкладка 1: обороты и наддув на циферблатах, температуры и давление — плитками. */
 public final class EnginePage implements Page {
 
     public String title() {
@@ -12,20 +12,27 @@ public final class EnginePage implements Page {
     }
 
     public void draw(Canvas c, Theme t, VehicleData d, float w, float h) {
-        Gauges.arcGauge(c, t, 148f, 178f, 136f, d.rpm,
-                0f, 7000f, 0, 7, 6500f, "RPM", 1000f);
-        c.drawText("x1000", 148f, 300f,
-                t.text(Theme.DIM, 12f, android.graphics.Paint.Align.CENTER, false));
+        float r = 128f;
+        float cy = 150f;
+        Gauges.dial(c, t, w / 2f - 168f, cy, r, d.rpm,
+                0f, 8000f, 0, 8, 6800f, "RPM", "x1000", 1000f, 0);
+        Gauges.dial(c, t, w / 2f + 168f, cy, r, d.boostActual,
+                -1f, 2f, 2, 6, 1.8f, "BOOST", "bar", 1f, 1);
 
-        Gauges.arcGauge(c, t, 370f, 178f, 106f, d.boostActual,
-                -1f, 2f, 2, 6, Float.NaN, "BOOST", 1f);
+        float tw = (w - 28f - 30f) / 4f;
+        float ty = h - 92f;
+        float th = 78f;
+        Gauges.tile(c, t, col(0, tw), ty, tw, th, Icons.COOLANT, "ОХЛ. ЖИДКОСТЬ",
+                d.coolantTemp, 0, "°C", 105f, 112f);
+        Gauges.tile(c, t, col(1, tw), ty, tw, th, Icons.OIL_TEMP, "ТЕМП. МАСЛА",
+                d.oilTemp, 0, "°C", 125f, 138f);
+        Gauges.tile(c, t, col(2, tw), ty, tw, th, Icons.OIL_PRESS, "ДАВЛ. МАСЛА",
+                d.oilPressure, 1, "bar", Float.NaN, Float.NaN);
+        Gauges.tile(c, t, col(3, tw), ty, tw, th, Icons.INTAKE, "ТЕМП. ВПУСКА",
+                d.intakeTemp, 0, "°C", 55f, 70f);
+    }
 
-        float tx = 492f;
-        float tw = 160f;
-        float th = 176f;
-        Gauges.tile(c, t, tx, 6f, tw, th, d.coolantTemp, 0, 40f, 130f, 105f, 112f);
-        Gauges.tile(c, t, tx + 174f, 6f, tw, th, d.oilTemp, 0, 40f, 150f, 125f, 138f);
-        Gauges.tile(c, t, tx, 194f, tw, th, d.oilPressure, 1, 0f, 7f, Float.NaN, Float.NaN);
-        Gauges.tile(c, t, tx + 174f, 194f, tw, th, d.intakeTemp, 0, 0f, 90f, 55f, 70f);
+    static float col(int i, float tw) {
+        return 14f + i * (tw + 10f);
     }
 }
