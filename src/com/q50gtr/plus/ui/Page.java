@@ -13,6 +13,9 @@ public interface Page {
     /** Tab caption. */
     String title();
 
-    /** Draw into a {@code w} x {@code h} box whose origin is already at 0,0. */
-    void draw(Canvas c, Theme t, VehicleData d, float w, float h);
+    /**
+     * Draw into the content box; the origin is already at its top-left.
+     * {@code l} carries the measured grid for the current screen width.
+     */
+    void draw(Canvas c, Theme t, Layout l, VehicleData d);
 }

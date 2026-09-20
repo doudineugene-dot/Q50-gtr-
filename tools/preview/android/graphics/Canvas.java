@@ -91,6 +91,18 @@ public class Canvas {
         g.draw(new Line2D.Float(x1, y1, x2, y2));
     }
 
+    public void drawBitmap(Bitmap b, RectF dst, Paint p) {
+        if (b == null) {
+            return;
+        }
+        g.drawImage(b.image, (int) dst.left, (int) dst.top,
+                (int) dst.width(), (int) dst.height(), null);
+    }
+
+    public void drawRect(float left, float top, float right, float bottom, Paint p) {
+        paintShape(new Rectangle2D.Float(left, top, right - left, bottom - top), p);
+    }
+
     public void drawRect(RectF r, Paint p) {
         paintShape(new Rectangle2D.Float(r.left, r.top, r.width(), r.height()), p);
     }

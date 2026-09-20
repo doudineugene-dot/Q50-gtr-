@@ -1,0 +1,71 @@
+{
+  "source_image": "ChatGPT Image 20 сент. 2026 г., 10_01_19.png",
+  "source_size": [
+    1659,
+    948
+  ],
+  "target": [
+    840,
+    480
+  ],
+  "note": "MASTER images are deterministic crops/resizes of the user-approved reference, not AI-generated.",
+  "screens": {
+    "ENGINE": {
+      "source_bbox": [
+        10,
+        61,
+        534,
+        529
+      ],
+      "source_crop_size": [
+        524,
+        468
+      ],
+      "scale": 1.0256410256410255,
+      "target_content_bbox": [
+        151,
+        0,
+        688,
+        480
+      ]
+    },
+    "FUEL": {
+      "source_bbox": [
+        552,
+        61,
+        1075,
+        529
+      ],
+      "source_crop_size": [
+        523,
+        468
+      ],
+      "scale": 1.0256410256410255,
+      "target_content_bbox": [
+        152,
+        0,
+        688,
+        480
+      ]
+    },
+    "CHASSIS": {
+      "source_bbox": [
+        1092,
+        61,
+        1615,
+        529
+      ],
+      "source_crop_size": [
+        523,
+        468
+      ],
+      "scale": 1.0256410256410255,
+      "target_content_bbox": [
+        152,
+        0,
+        688,
+        480
+      ]
+    }
+  }
+}

@@ -18,12 +18,28 @@ public final class Theme {
     public static final int NAV = 0xFF000005;
     public static final int HAIRLINE = 0xFF2A2740;
 
-    public static final int TILE = 0xFF070C12;
-    public static final int TILE_EDGE = 0xFF1B2430;
+    /* Карточка на эталоне не залита ровно: сверху 19,24,31, в середине
+     * 4,7,11, снизу 16,20,27, кромка доходит до 77,82,90. */
+    public static final int TILE = 0xFF04070B;
+    public static final int TILE_TOP = 0xFF131820;
+    public static final int TILE_BOTTOM = 0xFF10141B;
+    public static final int TILE_EDGE = 0xFF454B55;
 
-    public static final int DIAL_IN = 0xFF101C33;
-    public static final int DIAL_OUT = 0xFF000006;
-    public static final int RING_DARK = 0xFF05070C;
+    /* Циферблат на эталоне почти чёрный: пипетка по радиусу даёт 2..10 по
+     * всем каналам, никакого синего подсвета в полсилы там нет. */
+    public static final int DIAL_IN = 0xFF05080F;
+    public static final int DIAL_OUT = 0xFF000103;
+    public static final int RING_DARK = 0xFF000002;
+
+    /** Разделитель под статус-полосой: сине-лавандовый, не серый. */
+    public static final int RULE = 0xFF8A8EB7;
+    /** Фон навигации: сверху светлее, снизу темнее. */
+    public static final int NAV_TOP = 0xFF0E141C;
+    public static final int NAV_BOTTOM = 0xFF05080C;
+    /** Активная вкладка: синий градиент во всю высоту полосы. */
+    public static final int TAB_TOP = 0xFF2A3660;
+    public static final int TAB_BOTTOM = 0xFF222B55;
+    public static final int TAB_EDGE = 0xFF7988B5;
 
     public static final int BEZEL_HI = 0xFF9BA5B3;
     public static final int BEZEL_MID = 0xFF232932;
@@ -97,7 +113,6 @@ public final class Theme {
         bezelShader = new LinearGradient(-r, -r, r * 0.6f, r,
                 new int[]{BEZEL_HI, BEZEL_LO, BEZEL_MID, BEZEL_LO, BEZEL_HI},
                 new float[]{0f, 0.22f, 0.52f, 0.78f, 1f}, Shader.TileMode.CLAMP);
-        // Циферблат почти чёрный, с лёгким синим подсветом у центра.
         dialShader = new RadialGradient(0f, -r * 0.10f, r * 0.95f,
                 DIAL_IN, DIAL_OUT, Shader.TileMode.CLAMP);
         shaderRadius = r;
@@ -115,5 +130,45 @@ public final class Theme {
         fill.setShader(dialShader);
         fill.setColor(0xFFFFFFFF);
         return fill;
+    }
+
+    /** Трёхточечный вертикальный градиент: заливка карточки. */
+    public Paint vertical3(int top, int mid, int bottom, float y0, float y1) {
+        fill.setShader(new LinearGradient(0f, y0, 0f, y1,
+                new int[]{top, mid, bottom}, new float[]{0f, 0.45f, 1f},
+                Shader.TileMode.CLAMP));
+        fill.setColor(0xFFFFFFFF);
+        return fill;
+    }
+
+    /** Вертикальный градиент: полоса навигации, подсветка вкладки. */
+    public Paint vertical(int top, int bottom, float y0, float y1) {
+        fill.setShader(new LinearGradient(0f, y0, 0f, y1, top, bottom,
+                Shader.TileMode.CLAMP));
+        fill.setColor(0xFFFFFFFF);
+        return fill;
+    }
+
+    /**
+     * Яркость безеля по углу, снятая пипеткой с эталона через 15°: кольцо
+     * почти везде светлое, но внизу (75..105°) уходит в тень.
+     */
+    private static final int[] BEZEL_BY_ANGLE = {
+            235, 250, 255, 226, 102, 14, 3, 11, 69, 204, 243, 138,
+            109, 173, 229, 158, 197, 181, 157, 166, 227, 225, 232, 250};
+
+    /** Интерполированная яркость безеля для угла в градусах. */
+    public static int bezelAt(float deg, float scale) {
+        float f = ((deg % 360f) + 360f) % 360f / 15f;
+        int i = (int) f;
+        float k = f - i;
+        int a = BEZEL_BY_ANGLE[i % 24];
+        int b = BEZEL_BY_ANGLE[(i + 1) % 24];
+        int v = (int) ((a + (b - a) * k) * scale);
+        // Кольцо слегка тёплое: красный канал чуть выше синего.
+        int rr = Math.min(255, v);
+        int gg = Math.min(255, (int) (v * 0.975f));
+        int bb = Math.min(255, (int) (v * 0.99f));
+        return 0xFF000000 | (rr << 16) | (gg << 8) | bb;
     }
 }

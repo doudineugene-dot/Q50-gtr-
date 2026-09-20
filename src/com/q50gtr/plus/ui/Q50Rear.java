@@ -83,8 +83,12 @@ public final class Q50Rear {
      * Пневмостойка с давлением. {@code labelLeft} разводит подпись по ту
      * сторону стойки, где для неё есть место.
      */
+    /**
+     * Стойка пневмоподвески. На эталоне подпись давления стоит над стойкой
+     * (передняя ось) или под ней (задняя), а не сбоку — см. спеку, п.8.
+     */
     public static void strut(Canvas c, Theme t, float cx, float cy, float h,
-                             Channel ch, boolean labelLeft) {
+                             Channel ch, boolean labelAbove) {
         float top = cy - h / 2f;
         float bottom = cy + h / 2f;
         float w = h * 0.30f;
@@ -107,11 +111,10 @@ public final class Q50Rear {
             c.drawArc(t.rect, 0f, 180f, false, t.stroke(0xFF7E8A9B, 2.4f));
         }
 
-        // Давление подписывается рядом со стойкой.
+        // Давление подписывается над стойкой или под ней.
         String text = ch.hasValue() ? ch.text(1) : "—";
-        Paint p = t.text(ch.hasValue() ? Theme.WHITE : Theme.VALUE_DIM, 21f,
-                labelLeft ? Paint.Align.RIGHT : Paint.Align.LEFT, true);
-        float tx = labelLeft ? cx - w * 0.80f : cx + w * 0.80f;
-        c.drawText(text, tx, cy + 8f, p);
+        Paint p = t.text(ch.hasValue() ? Theme.WHITE : Theme.VALUE_DIM, 23f,
+                Paint.Align.CENTER, false);
+        c.drawText(text, cx, labelAbove ? top - 9f : bottom + 24f, p);
     }
 }

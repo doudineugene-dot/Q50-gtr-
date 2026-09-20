@@ -2,8 +2,6 @@ package com.q50gtr.plus.ui;
 
 import android.content.Context;
 import android.graphics.Canvas;
-import android.graphics.Paint;
-import android.graphics.Path;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewConfiguration;
@@ -16,15 +14,14 @@ import java.util.Calendar;
 /**
  * Вся панель: статусная строка сверху, приборы посередине, вкладки снизу —
  * как в штатном InTouch. Одна View, один onDraw, никаких дочерних вью.
+ *
+ * Ширина раскладки задаётся через {@link Layout}. На устройстве это 840,
+ * офлайн-рендер для сравнения с эталоном использует 548 — см.
+ * docs/UI-MASTER-SPEC.md, п.10.
  */
 public final class DashboardView extends View implements Runnable {
 
-    public static final float DESIGN_W = 840f;
-    public static final float DESIGN_H = 480f;
-
-    private static final float TOP_H = Layout.TOP_H;
-    private static final float TABS_H = Layout.NAV_H;
-    private static final float CONTENT_H = DESIGN_H - TOP_H - TABS_H;
+    public static final float DESIGN_H = Layout.SCREEN_H;
 
     private static final long FRAME_MS = 100L;
     private static final float SWIPE_COMMIT = 70f;
@@ -33,6 +30,11 @@ public final class DashboardView extends View implements Runnable {
     private final DataHub hub;
     private final Page[] pages = new Page[]{new EnginePage(), new FuelPage(), new ChassisPage()};
     private final Calendar calendar = Calendar.getInstance();
+    private final String[] titles = new String[pages.length];
+
+    private Layout layout = Layout.device();
+    /** Фиксированное время: нужно офлайн-рендеру, чтобы кадр был повторяемым. */
+    private String clockOverride;
 
     private int page;
     private float dragX;
@@ -47,6 +49,20 @@ public final class DashboardView extends View implements Runnable {
         this.hub = hub;
         setBackgroundColor(Theme.BG);
         touchSlop = ViewConfiguration.get(context).getScaledTouchSlop();
+        // Статичные растры эталона грузятся один раз, не в onDraw.
+        Sprites.load(context);
+        for (int i = 0; i < pages.length; i++) {
+            titles[i] = pages[i].title();
+        }
+    }
+
+    /** Офлайн-рендер ставит сюда рамку эталона; на устройстве всегда 840. */
+    public void setLayout(Layout l) {
+        layout = l;
+    }
+
+    public Layout getLayout() {
+        return layout;
     }
 
     public void start() {
@@ -82,60 +98,54 @@ public final class DashboardView extends View implements Runnable {
     protected void onDraw(Canvas canvas) {
         VehicleData d = hub.getData();
         Theme t = theme;
+        Layout l = layout;
 
-        float sx = getWidth() / DESIGN_W;
+        float sx = getWidth() / l.w;
         float sy = getHeight() / DESIGN_H;
 
         int base = canvas.save();
         canvas.scale(sx, sy);
 
-        t.rect.set(0f, 0f, DESIGN_W, DESIGN_H);
+        t.rect.set(0f, 0f, l.w, DESIGN_H);
         canvas.drawRect(t.rect, t.fill(Theme.BG));
 
-        drawTopBar(canvas, d);
+        OemStatusBar.draw(canvas, t, l, clock(),
+                d.ambientTemp.hasValue() ? d.ambientTemp.text(0) : "--",
+                hub.isDemoActive() ? "DEMO" : null);
 
         int clip = canvas.save();
-        canvas.clipRect(0f, TOP_H, DESIGN_W, TOP_H + CONTENT_H);
-        canvas.translate(0f, TOP_H);
+        canvas.clipRect(0f, Layout.CONTENT_Y, l.w, Layout.CONTENT_Y + Layout.CONTENT_H);
+        canvas.translate(0f, Layout.CONTENT_Y);
         if (dragging && dragX != 0f) {
             int neighbour = dragX < 0f ? page + 1 : page - 1;
             drawPage(canvas, d, page, dragX);
             if (neighbour >= 0 && neighbour < pages.length) {
-                drawPage(canvas, d, neighbour, dragX + (dragX < 0f ? DESIGN_W : -DESIGN_W));
+                drawPage(canvas, d, neighbour, dragX + (dragX < 0f ? l.w : -l.w));
             }
         } else {
             drawPage(canvas, d, page, 0f);
         }
         canvas.restoreToCount(clip);
 
-        drawTabs(canvas);
+        OemNavigation.draw(canvas, t, l, titles, page);
         canvas.restoreToCount(base);
     }
 
     private void drawPage(Canvas canvas, VehicleData d, int index, float offsetX) {
         int save = canvas.save();
         canvas.translate(offsetX, 0f);
-        pages[index].draw(canvas, theme, d, DESIGN_W, CONTENT_H);
+        pages[index].draw(canvas, theme, layout, d);
         canvas.restoreToCount(save);
     }
 
-    /* ------------------------------------------------------------------ */
+    public void setClockOverride(String hhmm) {
+        clockOverride = hhmm;
+    }
 
-    private void drawTopBar(Canvas c, VehicleData d) {
-        Theme t = theme;
-        t.rect.set(0f, 0f, DESIGN_W, TOP_H);
-        c.drawRect(t.rect, t.fill(Theme.BG));
-        // Тонкая светло-фиолетовая линия под полосой — как на эталоне.
-        c.drawLine(0f, TOP_H - 0.5f, DESIGN_W, TOP_H - 0.5f, t.stroke(Theme.HAIRLINE, 1f));
-
-        // Стрелка «назад» — как в штатной оболочке.
-        Path p = t.path;
-        p.reset();
-        p.moveTo(28f, TOP_H / 2f - 7f);
-        p.lineTo(21f, TOP_H / 2f);
-        p.lineTo(28f, TOP_H / 2f + 7f);
-        c.drawPath(p, t.stroke(Theme.LABEL, 2f));
-
+    private String clock() {
+        if (clockOverride != null) {
+            return clockOverride;
+        }
         calendar.setTimeInMillis(System.currentTimeMillis());
         int hh = calendar.get(Calendar.HOUR_OF_DAY);
         int mm = calendar.get(Calendar.MINUTE);
@@ -148,105 +158,15 @@ public final class DashboardView extends View implements Runnable {
             sb.append('0');
         }
         sb.append(mm);
-        c.drawText(sb.toString(), 360f, TOP_H / 2f + 6f,
-                t.text(Theme.WHITE, 17f, Paint.Align.CENTER, false));
-
-        String temp = d.ambientTemp.hasValue() ? d.ambientTemp.text(0) + " °C" : "-- °C";
-        c.drawText(temp, 462f, TOP_H / 2f + 6f,
-                t.text(Theme.WHITE, 17f, Paint.Align.CENTER, false));
-
-        // Индикаторы справа: уровень сигнала и Bluetooth.
-        float bx = 766f;
-        for (int i = 0; i < 4; i++) {
-            float bh = 4f + i * 3f;
-            t.rect.set(bx + i * 5f, TOP_H / 2f + 6f - bh, bx + i * 5f + 3f, TOP_H / 2f + 6f);
-            c.drawRect(t.rect, t.fill(Theme.LABEL));
-        }
-        drawBluetooth(c, 806f, TOP_H / 2f, 8f);
-
-        if (hub.isDemoActive()) {
-            // Единственная отметка демо-режима на всей панели: на самих
-            // приборах её нет, там она только мешает читать показания.
-            c.drawText("DEMO", 566f, TOP_H / 2f + 5f,
-                    t.text(Theme.ACCENT, 11f, Paint.Align.CENTER, true));
-        }
-    }
-
-    private void drawBluetooth(Canvas c, float cx, float cy, float r) {
-        Theme t = theme;
-        Path p = t.path;
-        p.reset();
-        p.moveTo(cx, cy - r);
-        p.lineTo(cx + r * 0.6f, cy - r * 0.45f);
-        p.lineTo(cx - r * 0.6f, cy + r * 0.45f);
-        p.lineTo(cx, cy + r);
-        p.lineTo(cx, cy - r);
-        p.moveTo(cx, cy + r);
-        p.lineTo(cx + r * 0.6f, cy + r * 0.45f);
-        p.lineTo(cx - r * 0.6f, cy - r * 0.45f);
-        c.drawPath(p, t.stroke(Theme.LABEL, 1.6f));
-    }
-
-    /* ------------------------------------------------------------------ */
-
-    private void drawTabs(Canvas c) {
-        Theme t = theme;
-        float top = DESIGN_H - TABS_H;
-        t.rect.set(0f, top, DESIGN_W, DESIGN_H);
-        c.drawRect(t.rect, t.fill(Theme.NAV));
-        c.drawLine(0f, top + 0.5f, DESIGN_W, top + 0.5f, t.stroke(Theme.HAIRLINE, 1f));
-
-        arrow(c, 26f, top + TABS_H / 2f, true);
-        arrow(c, 814f, top + TABS_H / 2f, false);
-
-        for (int i = 0; i < pages.length; i++) {
-            float x = tabX(i);
-            boolean active = i == page;
-            if (active) {
-                // Трапеция со скошенными боками — форма активной вкладки InTouch.
-                Path tp = t.path;
-                tp.reset();
-                float slant = 16f;
-                tp.moveTo(x + slant, top + 2f);
-                tp.lineTo(x + TAB_W - slant, top + 2f);
-                tp.lineTo(x + TAB_W, DESIGN_H);
-                tp.lineTo(x, DESIGN_H);
-                tp.close();
-                c.drawPath(tp, t.fill(Theme.TAB_ACTIVE));
-                c.drawLine(x + slant, top + 2.5f, x + TAB_W - slant, top + 2.5f,
-                        t.stroke(Theme.ACCENT, 2f));
-            } else if (i > 0) {
-                c.drawLine(x, top + 12f, x, DESIGN_H - 12f, t.stroke(0xFF14181F, 1f));
-            }
-            c.drawText(pages[i].title(), x + TAB_W / 2f, top + TABS_H / 2f + 6f,
-                    t.text(active ? Theme.WHITE : Theme.LABEL, 15f, Paint.Align.CENTER, false));
-        }
-    }
-
-    private void arrow(Canvas c, float cx, float cy, boolean left) {
-        Theme t = theme;
-        Path p = t.path;
-        p.reset();
-        float d = left ? -1f : 1f;
-        p.moveTo(cx - d * 4f, cy - 7f);
-        p.lineTo(cx + d * 4f, cy);
-        p.lineTo(cx - d * 4f, cy + 7f);
-        c.drawPath(p, t.stroke(Theme.LABEL, 2f));
-    }
-
-    /** Полоса вкладок занимает всю ширину между стрелками, как в InTouch. */
-    private static final float TAB_SIDE = 54f;
-    private static final float TAB_W = (786f - TAB_SIDE) / 3f;
-
-    private static float tabX(int index) {
-        return TAB_SIDE + index * TAB_W;
+        return sb.toString();
     }
 
     /* ------------------------------------------------------------------ */
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-        float sx = getWidth() / DESIGN_W;
+        Layout l = layout;
+        float sx = getWidth() / l.w;
         float sy = getHeight() / DESIGN_H;
         float x = event.getX() / (sx <= 0f ? 1f : sx);
         float y = event.getY() / (sy <= 0f ? 1f : sy);
@@ -264,7 +184,7 @@ public final class DashboardView extends View implements Runnable {
                 float dy = y - downY;
                 float slop = touchSlop / (sx <= 0f ? 1f : sx);
                 if (!dragging && Math.abs(dx) > slop && Math.abs(dx) > Math.abs(dy)
-                        && downY > TOP_H && downY < DESIGN_H - TABS_H) {
+                        && downY > Layout.TOP_H && downY < DESIGN_H - Layout.NAV_H) {
                     dragging = true;
                 }
                 if (dragging) {
@@ -287,10 +207,10 @@ public final class DashboardView extends View implements Runnable {
                     invalidate();
                     return true;
                 }
-                if (event.getAction() == MotionEvent.ACTION_UP && y >= DESIGN_H - TABS_H) {
-                    if (x < 52f) {
+                if (event.getAction() == MotionEvent.ACTION_UP && y >= DESIGN_H - Layout.NAV_H) {
+                    if (x < Layout.TAB_SIDE) {
                         setPage(page - 1);
-                    } else if (x > DESIGN_W - 52f) {
+                    } else if (x > l.w - Layout.TAB_SIDE) {
                         setPage(page + 1);
                     } else {
                         int tapped = tabAt(x);
@@ -319,8 +239,7 @@ public final class DashboardView extends View implements Runnable {
 
     private int tabAt(float x) {
         for (int i = 0; i < pages.length; i++) {
-            float tx = tabX(i);
-            if (x >= tx && x <= tx + TAB_W) {
+            if (Math.abs(x - layout.tabCx(i)) <= layout.tabPitch * 0.5f) {
                 return i;
             }
         }

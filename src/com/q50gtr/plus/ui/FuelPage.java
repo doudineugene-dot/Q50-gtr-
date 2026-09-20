@@ -17,18 +17,18 @@ public final class FuelPage implements Page {
         return "ТОПЛИВО";
     }
 
-    public void draw(Canvas c, Theme t, VehicleData d, float w, float h) {
+    public void draw(Canvas c, Theme t, Layout l, VehicleData d) {
         float cy = Layout.DIAL_CY;
         float r = Layout.DIAL_R;
 
-        OemDial.draw(c, t, Layout.DIAL_LEFT_CX, cy, r, d.lpfp,
-                0f, 10f, 1, 5, Float.NaN, "LPFP", "bar", 1f, 0, true, "НЕТ ДАННЫХ");
-        OemDial.draw(c, t, Layout.DIAL_RIGHT_CX, cy, r, d.hpfpActual,
-                0f, 250f, 0, 5, Float.NaN, "HPFP", "bar", 1f, 0, true, null);
+        OemDial.draw(c, t, l.dialCx(0), cy, r, d.lpfp,
+                0f, 10f, 1, 10, 2, 9f, "LPFP", "bar", 1f, 0, true, "НЕТ ДАННЫХ");
+        OemDial.draw(c, t, l.dialCx(1), cy, r, d.hpfpActual,
+                0f, 250f, 0, 5, 1, Float.NaN, "HPFP", "bar", 1f, 0, true, null);
 
-        Layout.tile(c, t, 0, Icons.FUEL, "КОРРЕКЦИЯ ТОПЛИВА", d.stftB1, 1, "%", Float.NaN, Float.NaN);
-        Layout.tile(c, t, 1, Icons.LAMBDA, "СМЕСЬ (AFR)", d.afrB1, 1, "", Float.NaN, Float.NaN);
-        Layout.tile(c, t, 2, Icons.TURBO, "НАДДУВ (ЦЕЛЬ)", d.boostTarget, 1, "bar", Float.NaN, Float.NaN);
-        Layout.tile(c, t, 3, Icons.TURBO, "НАДДУВ (ФАКТ)", d.boostActual, 1, "bar", Float.NaN, Float.NaN);
+        EnginePage.tile(c, t, l, 0, Icons.FUEL, "КОРРЕКЦИЯ ТОПЛИВА", d.stftB1, 1, "%", Float.NaN, Float.NaN);
+        EnginePage.tile(c, t, l, 1, Icons.LAMBDA, "СМЕСЬ (AFR)", d.afrB1, 1, "", Float.NaN, Float.NaN);
+        EnginePage.tile(c, t, l, 2, Icons.TURBO, "НАДДУВ (ЦЕЛЬ)", d.boostTarget, 1, "bar", Float.NaN, Float.NaN);
+        EnginePage.tile(c, t, l, 3, Icons.TURBO, "НАДДУВ (ФАКТ)", d.boostActual, 1, "bar", Float.NaN, Float.NaN);
     }
 }
