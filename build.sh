@@ -11,8 +11,16 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 PKG_NAME="Q50-GTR-Plus"
-VERSION="0.7-live-test"
+. "$(dirname "$0")/version.sh"
 MIN_SDK=9
+
+# Манифест aapt читает напрямую, поэтому версия там задана отдельно. Расхождение
+# с version.sh дало бы APK с одним номером и именем файла с другим — ловим сразу.
+MANIFEST_VERSION=$(sed -n 's/.*android:versionName="\([^"]*\)".*/\1/p' AndroidManifest.xml)
+if [ "$MANIFEST_VERSION" != "$VERSION" ]; then
+    echo "Ошибка: versionName в AndroidManifest.xml = '$MANIFEST_VERSION', а в version.sh = '$VERSION'" >&2
+    exit 1
+fi
 
 BUILD_DIR="build"
 CACHE_DIR=".cache"
