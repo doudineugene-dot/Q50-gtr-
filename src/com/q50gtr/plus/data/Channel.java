@@ -31,6 +31,15 @@ public final class Channel {
     /** Who last wrote this channel: "INTOUCH", "ECUTEK", "AIRLIFT", "DEMO". */
     private String source;
 
+    /*
+     * Диагностика: сколько раз канал обновлялся и в каком диапазоне ходил.
+     * Нужно, чтобы отличить «сигнала нет» от «сигнал есть, но всё время ноль»
+     * — на приборке это выглядит одинаково, а причины разные.
+     */
+    private int updates;
+    private float observedMin = Float.NaN;
+    private float observedMax = Float.NaN;
+
     public Channel(String id, String label, String unit) {
         this.id = id;
         this.label = label;
@@ -41,6 +50,13 @@ public final class Channel {
         this.value = value;
         this.state = state;
         this.updatedAtMs = nowMs;
+        updates++;
+        if (Float.isNaN(observedMin) || value < observedMin) {
+            observedMin = value;
+        }
+        if (Float.isNaN(observedMax) || value > observedMax) {
+            observedMax = value;
+        }
     }
 
     public void setLive(float value, long nowMs) {
@@ -71,6 +87,18 @@ public final class Channel {
 
     public String getSource() {
         return source;
+    }
+
+    public int getUpdates() {
+        return updates;
+    }
+
+    /** Диапазон, в котором канал побывал: "0..0" сразу выдаёт мёртвый сигнал. */
+    public String getObservedRange() {
+        if (Float.isNaN(observedMin)) {
+            return "--";
+        }
+        return format(observedMin, 1) + ".." + format(observedMax, 1);
     }
 
     /** VALID / STALE / UNAVAILABLE / ERROR for the diagnostic overlay and logs. */

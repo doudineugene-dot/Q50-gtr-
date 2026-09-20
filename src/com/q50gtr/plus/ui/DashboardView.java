@@ -137,9 +137,16 @@ public final class DashboardView extends View implements Runnable {
     }
 
     private void measure() {
-        float sx = getWidth() / Layout.SCREEN_W;
+        // Вписываем не весь кадр 840x480, а полезную область эталона: по краям
+        // кадра всё равно чёрные поля, и ужимать картинку ради них — значит
+        // без нужды пересэмплировать её. На экране ГУ (800x480 или 840x480)
+        // это даёт масштаб ровно 1.0, то есть пиксель в пиксель.
+        float sx = getWidth() / Layout.CONTENT_W;
         float sy = getHeight() / Layout.SCREEN_H;
         scale = sx < sy ? sx : sy;
+        if (scale > 1f) {
+            scale = 1f;
+        }
         if (scale <= 0f) {
             scale = 1f;
         }

@@ -2,6 +2,8 @@ package android.graphics;
 
 public class Paint {
     public static final int ANTI_ALIAS_FLAG = 1;
+    public static final int FILTER_BITMAP_FLAG = 2;
+    public static final int DITHER_FLAG = 4;
 
     public enum Style { FILL, STROKE, FILL_AND_STROKE }
     public enum Align { LEFT, CENTER, RIGHT }

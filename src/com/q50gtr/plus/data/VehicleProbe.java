@@ -128,51 +128,51 @@ public final class VehicleProbe {
         line("сенсоров всего: " + sensorCount);
 
         VehicleData probeData = new VehicleData();
-        StringBuilder vehicle = new StringBuilder();
-        StringBuilder other = new StringBuilder();
         StringBuilder unmapped = new StringBuilder();
+        int unmappedCount = 0;
 
+        // Каждая строка идёт и в отчёт, и в logcat по отдельности: ради этих
+        // имён лог и снимается, а склеенный блок в logcat не попадал бы.
+        line("-- автомобильные сенсоры --");
         for (int i = 0; i < all.size(); i++) {
             Sensor s = all.get(i);
             String name = s.getName();
-            if (isVehicleSensor(s)) {
-                vehicleCount++;
-                VehicleSignal sig = VehicleSignal.find(name);
-                boolean mapped = sig != null
-                        && VehicleSignal.channelFor(probeData, sig.vsId) != null;
-                if (mapped) {
-                    mappedCount++;
-                }
-                vehicle.append("  t").append(s.getType()).append(' ').append(name)
-                        .append(mapped ? "  -> канал" : "  (не привязан)")
-                        .append('\n');
-                if (!mapped) {
-                    unmapped.append("  ").append(name).append('\n');
-                }
+            if (!isVehicleSensor(s)) {
+                continue;
+            }
+            vehicleCount++;
+            VehicleSignal sig = VehicleSignal.find(name);
+            boolean mapped = sig != null
+                    && VehicleSignal.channelFor(probeData, sig.vsId) != null;
+            if (mapped) {
+                mappedCount++;
             } else {
-                other.append("  t").append(s.getType()).append(' ').append(name)
-                        .append(" (").append(s.getVendor()).append(")\n");
+                unmappedCount++;
+                unmapped.append(name).append(' ');
+            }
+            line("  t" + s.getType() + " " + name
+                    + (mapped ? "  -> канал" : "  (НЕ ПРИВЯЗАН)"));
+        }
+
+        line("-- прочие сенсоры --");
+        for (int i = 0; i < all.size(); i++) {
+            Sensor s = all.get(i);
+            if (!isVehicleSensor(s)) {
+                line("  t" + s.getType() + " " + s.getName() + " (" + s.getVendor() + ")");
             }
         }
 
-        line("автомобильных: " + vehicleCount + ", привязано к каналам: " + mappedCount);
+        line("автомобильных: " + vehicleCount + ", привязано к каналам: " + mappedCount
+                + ", без привязки: " + unmappedCount);
         if (vehicleCount == 0) {
             failure = "автомобильных сенсоров нет — либо это не ГУ, либо нет "
                     + CAN_PERMISSION;
             line(failure);
-        } else {
-            line("-- автомобильные сенсоры --");
-            report.append(vehicle);
         }
-        if (unmapped.length() > 0) {
-            // Это и есть список, ради которого зонд существует: имена, которые
-            // ГУ отдаёт, а мы ещё не умеем принимать.
-            line("-- есть на шине, но у нас нет привязки --");
-            report.append(unmapped);
-        }
-        if (other.length() > 0) {
-            line("-- прочие сенсоры --");
-            report.append(other);
+        if (unmappedCount > 0) {
+            // Ради этой строки зонд и существует: имена, которые ГУ отдаёт, а
+            // мы ещё не умеем принимать.
+            line("БЕЗ ПРИВЯЗКИ: " + unmapped.toString().trim());
         }
     }
 

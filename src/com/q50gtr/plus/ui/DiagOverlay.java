@@ -24,7 +24,7 @@ public final class DiagOverlay {
     public static void draw(Canvas c, Theme t, DataHub hub, VehicleProbe probe, long nowMs) {
         VehicleData d = hub.getData();
 
-        float w = 300f;
+        float w = 330f;
         float x = Layout.SCREEN_W - w - 8f;
         float y = 52f;
         float lh = 14f;
@@ -81,7 +81,9 @@ public final class DiagOverlay {
                 : (ch.hasValue() ? Theme.LABEL : Theme.VALUE_DIM));
         return line(c, t, x, y, lh,
                 name + " " + ch.text(1) + "  " + ch.getStatusText()
-                        + "  " + src + "  " + age, colour);
+                        + "  " + src + "  " + age
+                        + "  n=" + ch.getUpdates() + "  [" + ch.getObservedRange() + "]",
+                colour);
     }
 
     private static float line(Canvas c, Theme t, float x, float y, float lh,

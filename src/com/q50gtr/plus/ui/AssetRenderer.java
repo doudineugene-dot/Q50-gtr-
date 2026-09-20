@@ -5,6 +5,7 @@ import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
+import android.graphics.Paint;
 import android.graphics.RectF;
 
 /**
@@ -27,6 +28,12 @@ public final class AssetRenderer {
     private final Bitmap[] backgrounds = new Bitmap[NAMES.length];
     private final RectF dst = new RectF();
 
+    /**
+     * Без этой кисти фон рисовался ближайшим соседом и без сглаживания
+     * градиентов: на экране ГУ это давало рваные кромки и полосы на тёмном.
+     */
+    private final Paint paint = new Paint(Paint.FILTER_BITMAP_FLAG | Paint.DITHER_FLAG);
+
     public AssetRenderer(Context context) {
         if (context == null) {
             return;
@@ -39,6 +46,9 @@ public final class AssetRenderer {
         // меньше памяти под растр — 0.8 МБ на экран вместо 1.6 МБ.
         BitmapFactory.Options opts = new BitmapFactory.Options();
         opts.inPreferredConfig = Bitmap.Config.RGB_565;
+        // Сжатие до 565 без дизеринга кладёт полосы ровно на тёмные градиенты,
+        // из которых состоит почти весь фон.
+        opts.inDither = true;
         opts.inScaled = false;
 
         String pkg = context.getPackageName();
@@ -60,6 +70,6 @@ public final class AssetRenderer {
             return;
         }
         dst.set(offsetX, 0f, offsetX + Layout.SCREEN_W, Layout.SCREEN_H);
-        c.drawBitmap(backgrounds[page], null, dst, null);
+        c.drawBitmap(backgrounds[page], null, dst, paint);
     }
 }

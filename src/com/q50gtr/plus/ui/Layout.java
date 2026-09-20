@@ -15,6 +15,8 @@ public final class Layout {
 
     public static final float SCREEN_W = 840f;
     public static final float SCREEN_H = 480f;
+    /** Полезная ширина эталона внутри кадра: остальное — чёрные поля. */
+    public static final float CONTENT_W = 536f;
 
     /** Левая кромка рамки экрана внутри кадра, по вкладкам. */
     private static final float[] FRAME_X = {152f, 163f, 174f};

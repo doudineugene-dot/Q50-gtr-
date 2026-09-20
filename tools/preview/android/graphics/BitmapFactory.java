@@ -10,6 +10,7 @@ public final class BitmapFactory {
     public static final class Options {
         public Bitmap.Config inPreferredConfig = Bitmap.Config.ARGB_8888;
         public boolean inScaled = true;
+        public boolean inDither = false;
     }
 
     private BitmapFactory() { }
