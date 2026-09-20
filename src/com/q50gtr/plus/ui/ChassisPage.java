@@ -24,21 +24,58 @@ public final class ChassisPage implements Page {
         c.drawText("ДАВЛЕНИЕ ПНЕВМОПОДВЕСКИ (bar)", leftW * 0.52f, 78f * s,
                 t.text(Theme.LABEL, l.text(14f), Paint.Align.CENTER, false));
 
-        float carX = 69f * k;
-        float carW = 198f * k;
+        // Автомобиль и стойки кладутся в своём соотношении сторон.
+        // Раньше ширина считалась через k, а высота через s — на 800x480 это
+        // растягивало автомобиль по горизонтали почти в полтора раза.
+        float strutH = 119f * s;
+        float strutW = Sprites.hasStrut()
+                ? Sprites.strutWidthFor(strutH) : 27f * s;
+        float strutTop = 129f * s;
+
+        // Стойки по краям левой половины, автомобиль — между ними.
+        float strutL = 44f * k;
+        float strutR = leftW - 49f * k;
+        float gapL = strutL + strutW * 0.5f + 14f * s;
+        float gapR = strutR - strutW * 0.5f - 14f * s;
+
+        float carW = gapR - gapL;
+        float carH = Sprites.hasCar()
+                ? Sprites.carHeightFor(carW) : carW * 138f / 198f;
+        float maxCarH = 150f * s;
+        if (carH > maxCarH) {
+            carH = maxCarH;
+            carW = Sprites.hasCar()
+                    ? carH * 198f / 138f : carH * 198f / 138f;
+        }
+        float carX = (gapL + gapR - carW) * 0.5f;
+        float carY = strutTop + (strutH - carH) * 0.5f;
+
         if (Sprites.hasCar()) {
-            Sprites.car(c, carX, 125f * s, carW, 138f * s);
+            Sprites.car(c, carX, carY, carW);
         } else {
-            Q50Rear.car(c, t, carX, 125f * s, carW, 138f * s);
+            Q50Rear.car(c, t, carX, carY, carW, carH);
         }
 
-        float strutL = 44f * k;
-        float strutR = 296f * k;
-        float strutH = 59f * s;
-        Q50Rear.strut(c, t, strutL, 158f * s, strutH, d.airFrontLeft, true);
-        Q50Rear.strut(c, t, strutR, 158f * s, strutH, d.airFrontRight, true);
-        Q50Rear.strut(c, t, strutL, 219f * s, strutH, d.airRearLeft, false);
-        Q50Rear.strut(c, t, strutR, 219f * s, strutH, d.airRearRight, false);
+        if (Sprites.hasStrut()) {
+            Sprites.strut(c, strutL, strutTop, strutH);
+            Sprites.strut(c, strutR, strutTop, strutH);
+        } else {
+            Q50Rear.strut(c, t, strutL, strutTop + strutH * 0.25f, strutH * 0.5f,
+                    d.airFrontLeft, true);
+            Q50Rear.strut(c, t, strutR, strutTop + strutH * 0.25f, strutH * 0.5f,
+                    d.airFrontRight, true);
+            Q50Rear.strut(c, t, strutL, strutTop + strutH * 0.75f, strutH * 0.5f,
+                    d.airRearLeft, false);
+            Q50Rear.strut(c, t, strutR, strutTop + strutH * 0.75f, strutH * 0.5f,
+                    d.airRearRight, false);
+        }
+
+        // Давления — динамические, над и под стойками.
+        float press = 21f * s;
+        OemTile.centred(c, t, strutL, strutTop - 9f * s, d.airFrontLeft, 1, press);
+        OemTile.centred(c, t, strutR, strutTop - 9f * s, d.airFrontRight, 1, press);
+        OemTile.centred(c, t, strutL, strutTop + strutH + 26f * s, d.airRearLeft, 1, press);
+        OemTile.centred(c, t, strutR, strutTop + strutH + 26f * s, d.airRearRight, 1, press);
 
         float colX = l.chassisColX();
         float colW = l.chassisColW();

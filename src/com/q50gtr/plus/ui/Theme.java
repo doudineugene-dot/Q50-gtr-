@@ -47,7 +47,9 @@ public final class Theme {
 
     public static final int WHITE = 0xFFF2F5FA;
     public static final int TICK = 0xFFF3EDF6;
-    public static final int TICK_MINOR = 0xFF8E8AA8;
+    /* Промежуточные деления на эталоне почти такие же яркие, как основные,
+     * только чуть холоднее и тоньше. */
+    public static final int TICK_MINOR = 0xFFCFC8E0;
     public static final int LABEL = 0xFF8A94A4;
     public static final int VALUE_DIM = 0xFF4A5462;
 

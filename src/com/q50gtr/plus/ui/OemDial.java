@@ -27,13 +27,19 @@ public final class OemDial {
      * ~0.70 подписи, дальше циферблат. */
     private static final float BEZEL_IN    = 0.914f;   // 117 px при R = 128
     private static final float RING_IN     = 0.883f;   // 113 px
-    private static final float TICK_OUT    = 0.875f;   // 112 px
-    private static final float TICK_MAJ_IN = 0.805f;   // 103 px
-    private static final float TICK_MIN_IN = 0.845f;   // 108 px
+    // Замер по эталону: и основные, и промежуточные деления идут от 0.79 до
+    // 0.885 радиуса. Промежуточные были вчетверо короче — отсюда и ощущение
+    // пустой шкалы.
+    private static final float TICK_OUT    = 0.885f;
+    private static final float TICK_MAJ_IN = 0.790f;
+    private static final float TICK_MIN_IN = 0.800f;
     private static final float LABEL_R     = 0.700f;   //  90 px
 
     /** Радиальный профиль яркости кольца: внутри тускло, пик у 0.94, к краю спад. */
     private static final float[] BEZEL_BANDS = {0.30f, 0.72f, 1.00f, 0.75f, 0.40f, 0.31f};
+
+    /** Полос в градиенте красной зоны. */
+    private static final int RED_BANDS = 5;
 
     /** Колец в ореоле вокруг прибора. */
     private static final int GLOW_STEPS = 7;
@@ -97,9 +103,18 @@ public final class OemDial {
         // Кольцо рисуется дугами, а не растром: растр пришлось бы
         // масштабировать под фактический размер прибора, а это ровно то мыло,
         // из-за которого от полноэкранного фона и отказались.
-        drawBezelRings(c, t, r);
-        c.drawCircle(0f, 0f, r * BEZEL_IN, t.fill(Theme.RING_DARK));
-        c.drawCircle(0f, 0f, r * RING_IN, t.dial(r));
+        if (Sprites.hasBezel()) {
+            // Кольцо берётся с эталона: полированный металл с бликом и тенью
+            // примитивами не набирается. Растр кладётся в свой размер, при
+            // штатной геометрии окна — почти один к одному.
+            c.drawCircle(0f, 0f, r * BEZEL_IN, t.fill(Theme.RING_DARK));
+            c.drawCircle(0f, 0f, r * RING_IN, t.dial(r));
+            Sprites.bezel(c, 0f, 0f, r);
+        } else {
+            drawBezelRings(c, t, r);
+            c.drawCircle(0f, 0f, r * BEZEL_IN, t.fill(Theme.RING_DARK));
+            c.drawCircle(0f, 0f, r * RING_IN, t.dial(r));
+        }
     }
 
     /** Запасной безель, если растр недоступен: кольцо из дуг по профилю. */
@@ -126,15 +141,23 @@ public final class OemDial {
                                  boolean showValue, String emptyNote,
                                  float needleAt) {
 
-        // 2. Красная зона — сектор во всю ширину полосы делений.
+        // 2. Красная зона. На эталоне это не плашка, а градиент: у обода
+        //    насыщенный (186,62,49), внутрь гаснет до сероватого. Набираем
+        //    несколькими дугами с растущей к ободу непрозрачностью.
         if (!Float.isNaN(redlineFrom) && redlineFrom > min && redlineFrom < max) {
-            float band = (TICK_OUT - TICK_MAJ_IN) * r;
-            float rr = (TICK_OUT + TICK_MAJ_IN) / 2f * r;
-            t.rect.set(-rr, -rr, rr, rr);
-            float f = (redlineFrom - min) / (max - min);
-            float from = ARC_START + ARC_SWEEP * f;
-            c.drawArc(t.rect, from, ARC_START + ARC_SWEEP - from, false,
-                    t.stroke(Theme.RED_ZONE, band));
+            float f0 = (redlineFrom - min) / (max - min);
+            float from = ARC_START + ARC_SWEEP * f0;
+            float sweep = ARC_START + ARC_SWEEP - from;
+            float step = (TICK_OUT - TICK_MAJ_IN) / RED_BANDS;
+            for (int i = 0; i < RED_BANDS; i++) {
+                float inner = TICK_MAJ_IN + step * i;
+                float rr = (inner + step * 0.5f) * r;
+                int alpha = 70 + (int) (170f * i / (float) (RED_BANDS - 1));
+                t.rect.set(-rr, -rr, rr, rr);
+                c.drawArc(t.rect, from, sweep, false,
+                        t.stroke((alpha << 24) | (Theme.RED_ZONE & 0xFFFFFF),
+                                step * r + 0.8f));
+            }
         }
 
         // 3. Промежуточные деления — посередине между основными.
@@ -144,7 +167,7 @@ public final class OemDial {
             float cos = (float) Math.cos(a), sin = (float) Math.sin(a);
             c.drawLine(cos * r * TICK_MIN_IN, sin * r * TICK_MIN_IN,
                     cos * r * TICK_OUT, sin * r * TICK_OUT,
-                    t.stroke(Theme.TICK_MINOR, r * 0.026f));
+                    t.stroke(Theme.TICK_MINOR, r * 0.024f));
         }
 
         // 4. Основные деления и подписи шкалы.
