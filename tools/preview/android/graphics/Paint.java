@@ -15,6 +15,7 @@ public class Paint {
     private float textSize = 12f;
     private Typeface typeface = Typeface.SANS_SERIF;
     private Shader shader;
+    private float textScaleX = 1f;
 
     public Paint() { }
     public Paint(int flags) { }
@@ -33,6 +34,8 @@ public class Paint {
     public float getTextSize() { return textSize; }
     public void setTypeface(Typeface t) { typeface = t; }
     public Typeface getTypeface() { return typeface; }
+    public void setTextScaleX(float x) { textScaleX = x; }
+    public float getTextScaleX() { return textScaleX; }
     public void setShader(Shader s) { shader = s; }
     public Shader getShader() { return shader; }
 
@@ -46,7 +49,13 @@ public class Paint {
             if (avail.contains(f)) { pick = f; break; }
         }
         int st = (typeface != null && typeface.bold) ? java.awt.Font.BOLD : java.awt.Font.PLAIN;
-        return new java.awt.Font(pick, st, 10).deriveFont(textSize);
+        java.awt.Font f = new java.awt.Font(pick, st, 10).deriveFont(textSize);
+        if (textScaleX != 1f) {
+            // Android сжимает глифы по горизонтали; в Java2D это аффинный
+            // трансформ шрифта с тем же коэффициентом.
+            f = f.deriveFont(java.awt.geom.AffineTransform.getScaleInstance(textScaleX, 1.0));
+        }
+        return f;
     }
 
     public float measureText(String s) {

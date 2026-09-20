@@ -19,8 +19,8 @@ from PIL import Image, ImageDraw
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 REF = os.path.join(ROOT, "reference", "ui-master")
-SCREENS = [("engine", "ENGINE", 0), ("fuel", "FUEL", 11), ("chassis", "CHASSIS", 22)]
-FRAME_X, FRAME_W = 152, 548
+SCREENS = [("engine", "ENGINE", 152), ("fuel", "FUEL", 163), ("chassis", "CHASSIS", 174)]
+FRAME_W = 536
 
 
 def rgb(path):
@@ -73,7 +73,7 @@ def main():
         if M.shape != A.shape:
             raise SystemExit("size mismatch: %s vs %s" % (M.shape, A.shape))
 
-        x0 = FRAME_X + drift
+        x0 = drift
         x1 = min(840, x0 + FRAME_W)
         full = metrics(M, A)
         content = metrics(M[:, x0:x1], A[:, x0:x1])

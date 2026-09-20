@@ -51,6 +51,15 @@ public final class Theme {
     public static final int LABEL = 0xFF8A94A4;
     public static final int VALUE_DIM = 0xFF4A5462;
 
+    /*
+     * Стрелка и ступица по замерам эталона. Ступица там тёмная: радиальный
+     * профиль даёт 25..33 по яркости внутри и слабый ободок 25..37 на r≈18.
+     */
+    public static final int NEEDLE = 0xFFFFFFFF;
+    public static final int HUB_RIM = 0xFF2A3037;
+    public static final int HUB_FILL = 0xFF0E1317;
+    public static final int HUB_CORE = 0xFF080B10;
+
     public static final int ACCENT = 0xFF8E86FF;
     public static final int TAB_ACTIVE = 0xFF303750;
     public static final int RED = 0xFF9E1219;
@@ -97,10 +106,20 @@ public final class Theme {
         return stroke;
     }
 
+    /**
+     * Штатный шрифт кластера Q50 — узкий гротеск. Настоящего шрифта Infiniti
+     * у нас нет, и на Android 2.3 нет даже семейства sans-serif-condensed:
+     * Typeface.create() молча возвращает обычный Droid Sans. Поэтому узость
+     * набирается через setTextScaleX — коэффициент подобран по эталону:
+     * «11:06» занимает там 47 px при высоте цифр 17 px.
+     */
+    public static final float CONDENSE = 0.79f;
+
     public Paint text(int color, float size, Paint.Align align, boolean boldFace) {
         text.setShader(null);
         text.setColor(color);
         text.setTextSize(size);
+        text.setTextScaleX(CONDENSE);
         text.setTextAlign(align);
         text.setTypeface(boldFace ? bold : regular);
         return text;

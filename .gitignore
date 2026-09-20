@@ -13,3 +13,5 @@ local.properties
 *.keystore.b64
 keystore-pass*
 
+__pycache__/
+*.pyc

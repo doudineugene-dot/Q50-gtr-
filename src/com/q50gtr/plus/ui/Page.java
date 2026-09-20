@@ -5,17 +5,14 @@ import android.graphics.Canvas;
 import com.q50gtr.plus.data.VehicleData;
 
 /**
- * One tab's worth of instruments. A page only reads VehicleData and draws —
- * it knows nothing about where the numbers came from.
+ * Динамический слой одной вкладки. Страница только читает VehicleData и
+ * рисует поверх фонового растра — она не знает, откуда пришли числа.
  */
 public interface Page {
 
-    /** Tab caption. */
+    /** Подпись вкладки (используется для попадания пальцем и логов). */
     String title();
 
-    /**
-     * Draw into the content box; the origin is already at its top-left.
-     * {@code l} carries the measured grid for the current screen width.
-     */
+    /** Рисует динамику в координатах эталона; фон уже лежит под ней. */
     void draw(Canvas c, Theme t, Layout l, VehicleData d);
 }

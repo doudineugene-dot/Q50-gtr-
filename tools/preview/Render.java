@@ -4,7 +4,6 @@ import android.graphics.Canvas;
 import com.q50gtr.plus.data.DataHub;
 import com.q50gtr.plus.data.VehicleData;
 import com.q50gtr.plus.ui.DashboardView;
-import com.q50gtr.plus.ui.Layout;
 
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
@@ -18,18 +17,12 @@ import javax.imageio.ImageIO;
  * подменены тонким слоем поверх Java2D, но Theme, OemDial, OemTile,
  * OemNavigation, OemStatusBar, Icons, Q50Rear и сами страницы — настоящие.
  *
- * Пишет два набора:
- *   actual-<экран>.png      кадр 840x480 в рамке MASTER (548 px, с тем же
- *                           сдвигом кадрирования) — для попиксельного
- *                           сравнения с reference/ui-master;
- *   device-<экран>.png      кадр 840x480 во всю ширину — то, что реально
- *                           увидит головное устройство.
+ * Пишет actual-<экран>.png — ровно то, что выводит приложение: фоновый
+ * растр из res/drawable-nodpi плюс динамический слой поверх него. Кадр
+ * 840x480, тот же, что у MASTER, поэтому сравнение попиксельное.
  */
 public final class Render {
 
-    /** Левая кромка рамки в MASTER и сдвиг кадрирования по экранам (спека, п.1). */
-    private static final int FRAME_X = 152;
-    private static final int[] DRIFT = {0, 11, 22};
     private static final String[] NAMES = {"engine", "fuel", "chassis"};
 
     public static void main(String[] args) throws Exception {
@@ -54,43 +47,30 @@ public final class Render {
         Method onDraw = DashboardView.class.getDeclaredMethod("onDraw", Canvas.class);
         onDraw.setAccessible(true);
 
+        view.setSize(840, 480);
         for (int page = 0; page < 3; page++) {
             view.setPage(page);
-
-            // 1. Рамка эталона внутри кадра 840x480.
-            view.setLayout(Layout.master());
-            view.setSize((int) Layout.MASTER_W, (int) Layout.SCREEN_H);
             BufferedImage img = blank();
             Graphics2D g = img.createGraphics();
             hint(g);
-            g.translate(FRAME_X + DRIFT[page], 0);
-            g.clipRect(0, 0, (int) Layout.MASTER_W, (int) Layout.SCREEN_H);
             onDraw.invoke(view, new Canvas(g));
             g.dispose();
             write(img, new File(out, "actual-" + NAMES[page] + ".png"));
-
-            // 2. Полная ширина головного устройства.
-            view.setLayout(Layout.device());
-            view.setSize((int) Layout.DEVICE_W, (int) Layout.SCREEN_H);
-            img = blank();
-            g = img.createGraphics();
-            hint(g);
-            onDraw.invoke(view, new Canvas(g));
-            g.dispose();
-            write(img, new File(out, "device-" + NAMES[page] + ".png"));
         }
     }
 
     /** Значения, снятые с MASTER: см. docs/UI-MASTER-SPEC.md. */
     private static void pose(VehicleData d, long now) {
-        d.rpm.setDemo(800f, now);
-        d.boostActual.setDemo(-0.35f, now);
+        // Углы стрелок, измеренные по MASTER: RPM 156.3°, BOOST 148.2°.
+        d.rpm.setDemo(325f, now);
+        d.boostActual.setDemo(-0.976f, now);
         d.coolantTemp.setDemo(93f, now);
         d.oilTemp.setDemo(97f, now);
         d.oilPressure.setDemo(4.1f, now);
         d.intakeTemp.setDemo(41f, now);
 
-        d.lpfp.setDemo(5.2f, now);
+        // LPFP не логируется — значение не подставляем, прибор покажет «—».
+        d.lpfp.setUnavailable();
         d.hpfpActual.setDemo(125f, now);
         d.stftB1.setDemo(2f, now);
         d.afrB1.setDemo(11.6f, now);
@@ -106,6 +86,9 @@ public final class Render {
         d.ambientTemp.setDemo(15f, now);
         d.ignitionTiming.setDemo(12f, now);
         d.knockRetard.setDemo(1.6f, now);
+        for (int i = 0; i < d.knockIndex.length; i++) {
+            d.knockIndex[i].setDemo(i == 2 ? 1.6f : 0.9f, now);
+        }
         d.throttle.setDemo(18f, now);
         d.speed.setDemo(0f, now);
     }

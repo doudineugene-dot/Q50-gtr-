@@ -1,131 +1,103 @@
 package com.q50gtr.plus.ui;
 
 /**
- * Вся геометрия экрана в одном месте.
+ * Координаты динамического слоя, снятые с MASTER.
  *
- * Числа взяты из docs/UI-MASTER-SPEC.md, то есть измерены детектором по
- * reference/ui-master/MASTER_*_840x480.png, а не подобраны на глаз.
+ * Фон экрана — растр 840x480, полученный из утверждённого эталона
+ * (tools/uispec/make_backgrounds.py). Поэтому система координат здесь —
+ * пиксели самого эталона, а не абстрактная сетка: всё, что рисует Canvas,
+ * должно лечь ровно поверх фона.
  *
- * Рамка эталона — 548x480 (1.142:1), головное устройство Q50 — 840x480
- * (1.75:1). Поэтому раскладка параметрическая: вертикали, радиусы и высоты
- * фиксированы в пикселях эталона, а горизонталь раздаётся по фактической
- * ширине. При width == MASTER_W геометрия совпадает с эталоном попиксельно —
- * на этом и строится сравнение в tools/uispec/compare.py.
+ * Кадрирование исходного коллажа уехало по экранам, поэтому левая кромка
+ * рамки у каждого своя — см. {@link #frameX} и docs/UI-MASTER-SPEC.md, п.1.
  */
 public final class Layout {
 
-    /** Ширина рамки экрана в MASTER. */
-    public static final float MASTER_W = 548f;
-    /** Ширина реального головного устройства. */
-    public static final float DEVICE_W = 840f;
+    public static final float SCREEN_W = 840f;
     public static final float SCREEN_H = 480f;
 
-    /* --- вертикаль: одинакова и в эталоне, и на устройстве --- */
-    public static final float TOP_H = 44f;
-    public static final float NAV_H = 48f;
-    public static final float CONTENT_Y = TOP_H;
-    public static final float CONTENT_H = SCREEN_H - TOP_H - NAV_H;   // 388
+    /** Левая кромка рамки экрана внутри кадра, по вкладкам. */
+    private static final float[] FRAME_X = {152f, 163f, 174f};
 
-    /** Приборы: центр и внешний радиус безеля (спека, п.5). */
-    public static final float DIAL_CY = 181f - TOP_H;
+    /* --- приборы (спека, п.5) --- */
+    public static final float DIAL_CY = 181f;
     public static final float DIAL_R = 128f;
+    private static final float[] DIAL_CX = {137f, 409f};
 
-    /** Карточки (спека, п.6). */
-    public static final float TILE_INSET = 9f;
-    public static final float TILE_GAP = 6f;
-    public static final float TILE_H = 92f;
-    public static final float TILE_Y = 304f - TOP_H;
-    /** Нижний ряд ШАССИ стоит ниже: спека, п.8. */
-    public static final float TILE_Y_CHASSIS = 331f - TOP_H;
+    /* --- карточки (спека, п.6) --- */
+    public static final float TILE_X0 = 9f;
+    public static final float TILE_PITCH = 134f;
+    /**
+     * Значение в карточке начинается на этом отступе от её левого края.
+     * На ШАССИ эталон ставит его на 11 px правее, чем на двух других вкладках.
+     */
+    private static final float[] TILE_VALUE_DX = {48f, 48f, 59f};
+    public static final float TILE_VALUE_BASE = 372f;
+    public static final float TILE_VALUE_BASE_CHASSIS = 399f;
 
-    /** Навигация (спека, п.7): боковое поле под стрелки. */
-    public static final float TAB_SIDE = 61f;
-    public static final float TAB_BAND_Y = 440f;
-    public static final float TAB_BAND_H = 32f;
+    /* --- верхняя полоса (спека, п.4) --- */
+    public static final float CLOCK_CX = 230.5f;
+    public static final float CLOCK_BASE = 36f;
+    public static final float TEMP_CX = 346.5f;
+    public static final float DEMO_CX = 425f;
 
-    public final float w;
-    public final float tileW;
-    public final float tabPitch;
-    public final float tabW;
+    /* --- ШАССИ (спека, п.8) --- */
+    private static final float[] STRUT_CX = {44f, 296f};
+    public static final float PRESS_BASE_FRONT = 120f;
+    public static final float PRESS_BASE_REAR = 283f;
+    public static final float COL_VALUE_X = 417f;
+    private static final float[] COL_VALUE_BASE = {111f, 181f, 249f, 316f};
 
-    public Layout(float width) {
-        this.w = width;
-        this.tileW = (width - 2f * TILE_INSET - 3f * TILE_GAP) / 4f;
-        this.tabPitch = (width - 2f * TAB_SIDE) / 3f;
-        this.tabW = tabPitch * (146f / 142f);
+    /* --- навигация: только для попадания пальцем, рисует её фон --- */
+    public static final float NAV_TOP = 432f;
+    private static final float TAB_SIDE = 61f;
+    private static final float TAB_PITCH = (548f - 2f * TAB_SIDE) / 3f;
+
+    /** Подписи приборов на ТОПЛИВЕ эталон рисует на 6 px ниже. */
+    private static final float[] CAPTION_DY = {0f, 6f, 0f};
+
+    private final int index;
+    private final float fx;
+
+    public Layout(int page) {
+        index = page < 0 ? 0 : (page > 2 ? 2 : page);
+        fx = FRAME_X[index];
     }
 
-    public static Layout master() {
-        return new Layout(MASTER_W);
+    public float captionDy() {
+        return CAPTION_DY[index];
     }
 
-    public static Layout device() {
-        return new Layout(DEVICE_W);
+    /** Левая кромка рамки этой вкладки в кадре 840x480. */
+    public float frameX() {
+        return fx;
     }
 
-    /* ------------------------------------------------------------------ */
+    public float x(float frameRelative) {
+        return fx + frameRelative;
+    }
 
-    /** Центры приборов: четверть и три четверти ширины (спека, п.5). */
     public float dialCx(int index) {
-        return index == 0 ? w * 0.25f : w * 0.75f;
+        return fx + DIAL_CX[index];
     }
 
-    public float tileX(int index) {
-        return TILE_INSET + index * (tileW + TILE_GAP);
+    public float tileValueX(int i) {
+        return fx + TILE_X0 + i * TILE_PITCH + TILE_VALUE_DX[index];
+    }
+
+    public float strutCx(int index) {
+        return fx + STRUT_CX[index];
+    }
+
+    public float colValueBase(int index) {
+        return COL_VALUE_BASE[index];
     }
 
     public float tabCx(int index) {
-        return TAB_SIDE + tabPitch * (index + 0.5f);
+        return fx + TAB_SIDE + TAB_PITCH * (index + 0.5f);
     }
 
-    /* --- статус-бар (спека, п.4) --- */
-    public float backCx() {
-        return 30.5f;
-    }
-
-    public float clockCx() {
-        return w * (230.5f / MASTER_W);
-    }
-
-    public float tempCx() {
-        return w * (346.5f / MASTER_W);
-    }
-
-    public float signalCx() {
-        return w - 60.5f;
-    }
-
-    public float bluetoothCx() {
-        return w - 36.5f;
-    }
-
-    /* --- навигация --- */
-    public float navArrowLeftCx() {
-        return 30.5f;
-    }
-
-    public float navArrowRightCx() {
-        return w - 33.5f;
-    }
-
-    /* --- ШАССИ (спека, п.8), координаты внутри контента --- */
-    public float chassisSplitX() {
-        return w * 0.63f;
-    }
-
-    public float chassisColX() {
-        return chassisSplitX();
-    }
-
-    public float chassisColW() {
-        return w - TILE_INSET - chassisColX();
-    }
-
-    public float chassisCardY(int index) {
-        return 58f - TOP_H + index * 68.25f;
-    }
-
-    public float chassisCardH() {
-        return 64f;
+    public float tabHalfWidth() {
+        return TAB_PITCH * 0.5f;
     }
 }
