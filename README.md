@@ -3,7 +3,7 @@
 Дополнительная приборная панель для штатного головного устройства
 Infiniti Q50 2017 (InTouch / DCU Gen1).
 
-**Версия:** 0.6 · **Экран:** 840×480, landscape · **Android:** API 9 (2.3)
+**Версия:** 0.7 · **Экран:** 840×480, landscape · **Android:** API 9 (2.3)
 
 > Совместимость с DCU ещё **не проверена**: приложение собирается и
 > подписывается, но на автомобиль пока не устанавливалось.
@@ -64,8 +64,8 @@ Infiniti Q50 2017 (InTouch / DCU Gen1).
 Локальный Android SDK не нужен — всё собирается в GitHub Actions:
 
 1. Actions → **Build APK** → Run workflow (или любой push в `main`).
-2. Artifact **`Q50-GTR-Plus-v0.6-InTouch`** со страницы завершённого run.
-3. Внутри: `Q50-GTR-Plus-v0.6.apk` и `.sha256`, `Q50-GTR-Plus-v0.6.epk` и
+2. Artifact **`Q50-GTR-Plus-v0.7-InTouch`** со страницы завершённого run.
+3. Внутри: `Q50-GTR-Plus-v0.7.apk` и `.sha256`, `Q50-GTR-Plus-v0.7.epk` и
    `.sha256`, `signature.txt`, `badging.txt`, `epk-info.txt`,
    `BUILD-PROVENANCE.txt`.
 
@@ -173,7 +173,7 @@ v2 и v3 выключены явно, подпись делается с `--min-
 
 AppManager (`com.connexis.appsmanager`) устанавливает приложения с USB
 **только** из контейнера `.epk` — голый APK он не распознаёт. Поэтому сборка
-выпускает оба файла, и для машины нужен именно `Q50-GTR-Plus-v0.6.epk`:
+выпускает оба файла, и для машины нужен именно `Q50-GTR-Plus-v0.7.epk`:
 положить в корень флешки FAT32 и выбрать в AppManager.
 
 ### Что подтверждено

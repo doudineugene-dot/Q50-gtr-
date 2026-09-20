@@ -1,64 +1,70 @@
 package com.q50gtr.plus.ui;
 
 import android.graphics.Canvas;
+import android.graphics.Paint;
 
+import com.q50gtr.plus.data.Channel;
 import com.q50gtr.plus.data.VehicleData;
 
 /**
- * The car seen from above, with air pressure at each corner wired to the wheel
- * it belongs to, plus driveline temperatures, board voltage and ambient temp.
+ * Вкладка 3: пневмоподвеска вокруг машины, температуры трансмиссии и бортовая
+ * сеть — колонкой справа, контроль зажигания и движения — строкой снизу.
  */
 public final class ChassisPage implements Page {
-
-    private static final float CAR_X = 350f;
-    private static final float CAR_Y = 10f;
-    private static final float CAR_W = 140f;
-    private static final float CAR_H = 250f;
 
     public String title() {
         return "ШАССИ";
     }
 
     public void draw(Canvas c, Theme t, VehicleData d, float w, float h) {
-        float colW = 152f;
-        float leftX = 14f;
-        float rightX = w - 14f - colW;
-        float rowH = 112f;
-        float r0 = 6f;
-        float r1 = 126f;
-        float r2 = 246f;
+        float colW = 238f;
+        float colX = w - 14f - colW;
 
-        // Geometry of the wheels the corner readouts point at.
-        float carCx = CAR_X + CAR_W / 2f;
-        float track = CAR_W * 0.335f;
-        float axleFront = CAR_Y + CAR_H * 0.235f;
-        float axleRear = CAR_Y + CAR_H * 0.745f;
-        Q50Silhouette.draw(c, t, CAR_X, CAR_Y, CAR_W, CAR_H);
+        c.drawText("ДАВЛЕНИЕ ПНЕВМОПОДВЕСКИ (bar)", (colX - 14f) / 2f + 14f, 26f,
+                t.text(Theme.LABEL, 12.5f, Paint.Align.CENTER, false));
 
-        leader(c, t, leftX + colW, r0 + rowH / 2f, carCx - track, axleFront);
-        leader(c, t, rightX, r0 + rowH / 2f, carCx + track, axleFront);
-        leader(c, t, leftX + colW, r1 + rowH / 2f, carCx - track, axleRear);
-        leader(c, t, rightX, r1 + rowH / 2f, carCx + track, axleRear);
+        float carW = 168f;
+        float carH = 132f;
+        float carX = (colX - 14f) / 2f + 14f - carW / 2f;
+        float carY = 48f;
+        Q50Rear.car(c, t, carX, carY, carW, carH);
 
-        Q50Silhouette.caption(c, t, carCx, CAR_Y + CAR_H + 16f, "AIRLIFT PERFORMANCE 3H");
+        // Стойки по углам машины: передние выше, задние ниже.
+        float strutH = 62f;
+        float leftX = carX - 52f;
+        float rightX = carX + carW + 52f;
+        float topY = carY + 20f;
+        float bottomY = carY + carH - 4f;
+        Q50Rear.strut(c, t, leftX, topY, strutH, d.airFrontLeft, true);
+        Q50Rear.strut(c, t, rightX, topY, strutH, d.airFrontRight, false);
+        Q50Rear.strut(c, t, leftX, bottomY, strutH, d.airRearLeft, true);
+        Q50Rear.strut(c, t, rightX, bottomY, strutH, d.airRearRight, false);
 
-        Gauges.tile(c, t, leftX, r0, colW, rowH, d.airFrontLeft, 0, 0f, 150f, Float.NaN, Float.NaN);
-        Gauges.tile(c, t, rightX, r0, colW, rowH, d.airFrontRight, 0, 0f, 150f, Float.NaN, Float.NaN);
-        Gauges.tile(c, t, leftX, r1, colW, rowH, d.airRearLeft, 0, 0f, 150f, Float.NaN, Float.NaN);
-        Gauges.tile(c, t, rightX, r1, colW, rowH, d.airRearRight, 0, 0f, 150f, Float.NaN, Float.NaN);
-        Gauges.tile(c, t, leftX, r2, colW, rowH, d.airTank, 0, 0f, 200f, Float.NaN, Float.NaN);
-        Gauges.tile(c, t, rightX, r2, colW, rowH, d.transmissionTemp, 0, 40f, 140f, 110f, 125f);
+        // Колонка справа.
+        float rh = 58f;
+        float gap = 8f;
+        float ry = 22f;
+        Gauges.tileRow(c, t, colX, ry, colW, rh, Icons.GEARBOX, "ТЕМП. АКПП",
+                d.transmissionTemp, 0, "°C", 110f, 125f);
+        Gauges.tileRow(c, t, colX, ry + (rh + gap), colW, rh, Icons.GEARBOX, "ТЕМП. РАЗДАТКИ",
+                d.transferCaseTemp, 0, "°C", 110f, 125f);
+        Gauges.tileRow(c, t, colX, ry + 2 * (rh + gap), colW, rh, Icons.BATTERY, "НАПРЯЖЕНИЕ",
+                d.batteryVoltage, 1, "V", Float.NaN, Float.NaN);
+        Gauges.tileRow(c, t, colX, ry + 3 * (rh + gap), colW, rh, Icons.AMBIENT, "ТЕМП. ОКР. ВОЗДУХА",
+                d.ambientTemp, 0, "°C", Float.NaN, Float.NaN);
 
-        float bw = 154f;
-        float by = 270f;
-        float bh = 100f;
-        Gauges.tile(c, t, 178f, by, bw, bh, d.transferCaseTemp, 0, 40f, 140f, 110f, 125f);
-        Gauges.tile(c, t, 342f, by, bw, bh, d.batteryVoltage, 1, 10f, 16f, Float.NaN, Float.NaN);
-        Gauges.tile(c, t, 506f, by, bw, bh, d.ambientTemp, 0, -30f, 50f, Float.NaN, Float.NaN);
-    }
-
-    private static void leader(Canvas c, Theme t, float x1, float y1, float x2, float y2) {
-        c.drawLine(x1, y1, x2, y2, t.stroke(Theme.EDGE_SOFT, 1f));
-        c.drawCircle(x2, y2, 2.5f, t.fill(Theme.ACCENT_DEEP));
+        // Нижняя строка на всю ширину.
+        float tw = (w - 28f - 30f) / 4f;
+        float ty = h - 92f;
+        float th = 78f;
+        Channel knock = d.maxKnockIndexChannel();
+        Gauges.tile(c, t, EnginePage.col(0, tw), ty, tw, th, Icons.SPARK, "УГОЛ ЗАЖИГАНИЯ",
+                d.ignitionTiming, 0, "°", Float.NaN, Float.NaN);
+        Gauges.tile(c, t, EnginePage.col(1, tw), ty, tw, th, Icons.KNOCK, "KNOCK INDEX (MAX)",
+                knock != null ? knock : d.knockRetard, 1, "", 25f, 40f);
+        Gauges.tile(c, t, EnginePage.col(2, tw), ty, tw, th, Icons.THROTTLE, "ДРОССЕЛЬ",
+                d.throttle, 0, "%", Float.NaN, Float.NaN);
+        Gauges.tile(c, t, EnginePage.col(3, tw), ty, tw, th, Icons.SPEED, "СКОРОСТЬ",
+                d.speed, 0, "км/ч", Float.NaN, Float.NaN);
     }
 }
