@@ -28,6 +28,9 @@ public final class Render {
     public static void main(String[] args) throws Exception {
         File out = new File(args.length > 0 ? args[0] : ".");
         out.mkdirs();
+        // Второй аргумент — размер вью, чтобы проверить экран ГУ 800x480.
+        int viewW = args.length > 1 ? Integer.parseInt(args[1]) : 840;
+        int viewH = args.length > 2 ? Integer.parseInt(args[2]) : 480;
 
         DataHub hub = new DataHub();
         hub.start();
@@ -47,10 +50,10 @@ public final class Render {
         Method onDraw = DashboardView.class.getDeclaredMethod("onDraw", Canvas.class);
         onDraw.setAccessible(true);
 
-        view.setSize(840, 480);
+        view.setSize(viewW, viewH);
         for (int page = 0; page < 3; page++) {
             view.setPage(page);
-            BufferedImage img = blank();
+            BufferedImage img = new BufferedImage(viewW, viewH, BufferedImage.TYPE_INT_RGB);
             Graphics2D g = img.createGraphics();
             hint(g);
             onDraw.invoke(view, new Canvas(g));

@@ -33,6 +33,11 @@ public final class DashboardView extends View implements Runnable {
     /** Фиксированное время: нужно офлайн-рендеру, чтобы кадр был повторяемым. */
     private String clockOverride;
 
+    /** Равномерный масштаб и отступы вписывания, считаются от размера вью. */
+    private float scale = 1f;
+    private float padX;
+    private float padY;
+
     private int page;
     private float dragX;
     private boolean dragging;
@@ -87,11 +92,15 @@ public final class DashboardView extends View implements Runnable {
         VehicleData d = hub.getData();
         Theme t = theme;
 
-        float sx = getWidth() / Layout.SCREEN_W;
-        float sy = getHeight() / Layout.SCREEN_H;
+        // Масштаб равномерный: экран ГУ не обязан быть ровно 840x480 (по
+        // данным проекта q50 он 800x480), а растягивать по одной оси нельзя —
+        // приборы превратятся в овалы. Кадр вписывается целиком и центрируется.
+        measure();
 
         int base = canvas.save();
-        canvas.scale(sx, sy);
+        canvas.drawColor(Theme.BG);
+        canvas.translate(padX, padY);
+        canvas.scale(scale, scale);
 
         t.rect.set(0f, 0f, Layout.SCREEN_W, Layout.SCREEN_H);
         canvas.drawRect(t.rect, t.fill(Theme.BG));
@@ -108,6 +117,17 @@ public final class DashboardView extends View implements Runnable {
         }
 
         canvas.restoreToCount(base);
+    }
+
+    private void measure() {
+        float sx = getWidth() / Layout.SCREEN_W;
+        float sy = getHeight() / Layout.SCREEN_H;
+        scale = sx < sy ? sx : sy;
+        if (scale <= 0f) {
+            scale = 1f;
+        }
+        padX = (getWidth() - Layout.SCREEN_W * scale) * 0.5f;
+        padY = (getHeight() - Layout.SCREEN_H * scale) * 0.5f;
     }
 
     private void drawScreen(Canvas canvas, VehicleData d, int index, float offsetX) {
@@ -145,10 +165,9 @@ public final class DashboardView extends View implements Runnable {
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-        float sx = getWidth() / Layout.SCREEN_W;
-        float sy = getHeight() / Layout.SCREEN_H;
-        float x = event.getX() / (sx <= 0f ? 1f : sx);
-        float y = event.getY() / (sy <= 0f ? 1f : sy);
+        measure();
+        float x = (event.getX() - padX) / scale;
+        float y = (event.getY() - padY) / scale;
 
         switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
@@ -161,7 +180,7 @@ public final class DashboardView extends View implements Runnable {
             case MotionEvent.ACTION_MOVE: {
                 float dx = x - downX;
                 float dy = y - downY;
-                float slop = touchSlop / (sx <= 0f ? 1f : sx);
+                float slop = touchSlop / scale;
                 if (!dragging && Math.abs(dx) > slop && Math.abs(dx) > Math.abs(dy)
                         && downY < Layout.NAV_TOP) {
                     dragging = true;
