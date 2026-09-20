@@ -15,10 +15,10 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 . "$(dirname "$0")/version.sh"
-APK="build/Q50-GTR-Plus-v$VERSION.apk"
+APK="build/$ARTIFACT_BASE.apk"
 CERT="${Q50_OBU_CERT:-keys/obu_cert.pem}"
 OUT_DIR="artifact"
-EPK="$OUT_DIR/Q50-GTR-Plus-v$VERSION.epk"
+EPK="$OUT_DIR/$ARTIFACT_BASE.epk"
 
 # Имя внутри контейнера: короткое и ASCII. Загрузчик ГУ старый, длинное имя с
 # дефисами и точками лишний раз испытывать не стоит.

@@ -28,12 +28,21 @@ jobs:
 
     env:
       BUILD_TOOLS: "33.0.2"
-      APK_NAME: "Q50-GTR-Plus-v0.7-live-test.apk"
-      EPK_NAME: "Q50-GTR-Plus-v0.7-live-test.epk"
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      # Имена файлов уникальны для каждой сборки: AppManager на ГУ не
+      # показывает .epk, если файл с таким именем уже попадался.
+      - name: Имена артефактов
+        run: |
+          set -euo pipefail
+          . ./version.sh
+          echo "ARTIFACT_BASE=${ARTIFACT_BASE}" >> "$GITHUB_ENV"
+          echo "APK_NAME=${ARTIFACT_BASE}.apk" >> "$GITHUB_ENV"
+          echo "EPK_NAME=${ARTIFACT_BASE}.epk" >> "$GITHUB_ENV"
+          echo "Сборка: ${ARTIFACT_BASE}"
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -91,7 +100,7 @@ jobs:
         run: ./build.sh
 
       - name: Verify APK
-        run: ./verify.sh "build/Q50-GTR-Plus-v0.7-live-test.apk"
+        run: ./verify.sh "build/${APK_NAME}"
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -284,12 +293,12 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Q50-GTR-Plus-v0.7-live-test
+          name: ${{ env.ARTIFACT_BASE }}
           path: |
-            artifact/Q50-GTR-Plus-v0.7-live-test.apk
-            artifact/Q50-GTR-Plus-v0.7-live-test.apk.sha256
-            artifact/Q50-GTR-Plus-v0.7-live-test.epk
-            artifact/Q50-GTR-Plus-v0.7-live-test.epk.sha256
+            artifact/${{ env.APK_NAME }}
+            artifact/${{ env.APK_NAME }}.sha256
+            artifact/${{ env.EPK_NAME }}
+            artifact/${{ env.EPK_NAME }}.sha256
             artifact/signature.txt
             artifact/badging.txt
             artifact/epk-info.txt

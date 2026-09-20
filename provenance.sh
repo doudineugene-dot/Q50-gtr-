@@ -12,8 +12,8 @@ cd "$(dirname "$0")"
 
 . "$(dirname "$0")/version.sh"
 OUT_DIR="artifact"
-APK_NAME="Q50-GTR-Plus-v$VERSION.apk"
-EPK_NAME="Q50-GTR-Plus-v$VERSION.epk"
+APK_NAME="$ARTIFACT_BASE.apk"
+EPK_NAME="$ARTIFACT_BASE.epk"
 OUT="$OUT_DIR/BUILD-PROVENANCE.txt"
 
 die() { printf '\033[31mОшибка: %s\033[0m\n' "$*" >&2; exit 1; }

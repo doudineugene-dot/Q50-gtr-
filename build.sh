@@ -43,7 +43,7 @@ fi
 
 UNSIGNED="$BUILD_DIR/$PKG_NAME-unsigned.apk"
 ALIGNED="$BUILD_DIR/$PKG_NAME-aligned.apk"
-OUTPUT="$BUILD_DIR/$PKG_NAME-v$VERSION.apk"
+OUTPUT="$BUILD_DIR/$ARTIFACT_BASE.apk"
 
 say() { printf '\n\033[1m==> %s\033[0m\n' "$*"; }
 die() { printf '\033[31mОшибка: %s\033[0m\n' "$*" >&2; exit 1; }
