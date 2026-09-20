@@ -86,6 +86,6 @@ public final class Sprites {
         }
         RectF dst = t.rect;
         dst.set(x, y, x + w, y + h);
-        c.drawBitmap(b, dst, null);
+        c.drawBitmap(b, null, dst, null);
     }
 }

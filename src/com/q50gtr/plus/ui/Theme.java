@@ -132,21 +132,51 @@ public final class Theme {
         return fill;
     }
 
-    /** Трёхточечный вертикальный градиент: заливка карточки. */
-    public Paint vertical3(int top, int mid, int bottom, float y0, float y1) {
-        fill.setShader(new LinearGradient(0f, y0, 0f, y1,
-                new int[]{top, mid, bottom}, new float[]{0f, 0.45f, 1f},
-                Shader.TileMode.CLAMP));
+    /*
+     * Вертикальные градиенты кэшируются: onDraw идёт 10 раз в секунду, и
+     * создавать по шесть шейдеров на кадр на железе 2011 года не стоит.
+     * Ключ — четыре параметра градиента; их у панели всего несколько.
+     */
+    private static final int GRAD_CACHE = 8;
+    private final long[] gradKey = new long[GRAD_CACHE];
+    private final Shader[] gradShader = new Shader[GRAD_CACHE];
+    private int gradNext;
+
+    private Paint cached(long key, int top, int mid, int bottom,
+                         float y0, float y1, boolean three) {
+        for (int i = 0; i < GRAD_CACHE; i++) {
+            if (gradShader[i] != null && gradKey[i] == key) {
+                fill.setShader(gradShader[i]);
+                fill.setColor(0xFFFFFFFF);
+                return fill;
+            }
+        }
+        Shader sh = three
+                ? new LinearGradient(0f, y0, 0f, y1,
+                        new int[]{top, mid, bottom}, new float[]{0f, 0.45f, 1f},
+                        Shader.TileMode.CLAMP)
+                : new LinearGradient(0f, y0, 0f, y1, top, bottom,
+                        Shader.TileMode.CLAMP);
+        gradKey[gradNext] = key;
+        gradShader[gradNext] = sh;
+        gradNext = (gradNext + 1) % GRAD_CACHE;
+        fill.setShader(sh);
         fill.setColor(0xFFFFFFFF);
         return fill;
     }
 
+    /** Трёхточечный вертикальный градиент: заливка карточки. */
+    public Paint vertical3(int top, int mid, int bottom, float y0, float y1) {
+        long key = ((long) top << 32) ^ ((long) bottom << 8)
+                ^ ((long) (y0 * 4f) << 20) ^ (long) (y1 * 4f);
+        return cached(key, top, mid, bottom, y0, y1, true);
+    }
+
     /** Вертикальный градиент: полоса навигации, подсветка вкладки. */
     public Paint vertical(int top, int bottom, float y0, float y1) {
-        fill.setShader(new LinearGradient(0f, y0, 0f, y1, top, bottom,
-                Shader.TileMode.CLAMP));
-        fill.setColor(0xFFFFFFFF);
-        return fill;
+        long key = 1L ^ ((long) top << 32) ^ ((long) bottom << 8)
+                ^ ((long) (y0 * 4f) << 20) ^ (long) (y1 * 4f);
+        return cached(key, top, top, bottom, y0, y1, false);
     }
 
     /**

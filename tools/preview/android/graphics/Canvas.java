@@ -91,12 +91,18 @@ public class Canvas {
         g.draw(new Line2D.Float(x1, y1, x2, y2));
     }
 
-    public void drawBitmap(Bitmap b, RectF dst, Paint p) {
+    public void drawBitmap(Bitmap b, Rect src, RectF dst, Paint p) {
         if (b == null) {
             return;
         }
-        g.drawImage(b.image, (int) dst.left, (int) dst.top,
-                (int) dst.width(), (int) dst.height(), null);
+        int sx0 = src == null ? 0 : src.left;
+        int sy0 = src == null ? 0 : src.top;
+        int sx1 = src == null ? b.getWidth() : src.right;
+        int sy1 = src == null ? b.getHeight() : src.bottom;
+        g.drawImage(b.image,
+                Math.round(dst.left), Math.round(dst.top),
+                Math.round(dst.right), Math.round(dst.bottom),
+                sx0, sy0, sx1, sy1, null);
     }
 
     public void drawRect(float left, float top, float right, float bottom, Paint p) {
