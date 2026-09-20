@@ -8,6 +8,8 @@
 
     <!-- чтение сигналов CAN (сенсоры VS_ID_*); dangerous -> авто-выдача на API 10 -->
     <uses-permission android:name="com.ygomi.permission.IVI_CAN_READ" />
+    <!-- диагностический отчёт на флешку: в машине adb может не быть -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
 
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
 

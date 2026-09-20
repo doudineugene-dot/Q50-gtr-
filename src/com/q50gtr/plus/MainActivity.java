@@ -2,6 +2,7 @@ package com.q50gtr.plus;
 
 import android.app.Activity;
 import android.os.Bundle;
+import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
 
@@ -12,7 +13,9 @@ import com.q50gtr.plus.data.DataHub;
 import com.q50gtr.plus.data.DemoDataProvider;
 import com.q50gtr.plus.data.EcuTekLiveSource;
 import com.q50gtr.plus.data.InTouchVehicleSource;
+import com.q50gtr.plus.data.Channel;
 import com.q50gtr.plus.data.VehicleProbe;
+import com.q50gtr.plus.diag.DiagnosticReport;
 import com.q50gtr.plus.ui.DashboardView;
 
 /**
@@ -35,9 +38,11 @@ public final class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         requestWindowFeature(Window.FEATURE_NO_TITLE);
-        // The theme is already fullscreen; all the window needs from us is to
-        // stay awake while the car is running.
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        // Всю область, которую ГУ отдаёт приложению, берём целиком: без
+        // заголовка и строки состояния. Тема уже полноэкранная, флаг ставится
+        // явно, чтобы это не зависело от того, какую тему подставит прошивка.
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN
+                | WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         // Сначала зонд: на незнакомой прошивке важно записать факты до того,
         // как что-то подключать. Он только читает.
@@ -52,6 +57,11 @@ public final class MainActivity extends Activity {
                 new AirLiftLiveSource(), new DemoDataProvider());
         dashboard = new DashboardView(this, hub);
         dashboard.setProbe(probe);
+        // MATCH_PARENT x MATCH_PARENT: никаких фиксированных размеров, вью
+        // получает ровно то окно, которое даёт InTouch.
+        dashboard.setLayoutParams(new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT));
         setContentView(dashboard);
 
         if (savedInstanceState != null) {
@@ -70,7 +80,56 @@ public final class MainActivity extends Activity {
     protected void onPause() {
         dashboard.stop();
         hub.stop();
+        // Отчёт пишется на выходе: к этому моменту уже видно, какие каналы
+        // приходили, а какие нет. В машине adb может не быть.
+        try {
+            String path = DiagnosticReport.write(buildReport());
+            if (path != null) {
+                Log.i(TAG, "диагностика сохранена: " + path);
+            }
+        } catch (Throwable t) {
+            Log.w(TAG, "отчёт не записан: " + t);
+        }
         super.onPause();
+    }
+
+    /** Полный диагностический отчёт: геометрия, зонд, состояние каналов. */
+    private String buildReport() {
+        StringBuilder b = new StringBuilder();
+        b.append("Q50 GTR+ DIAGNOSTIC REPORT\n");
+        b.append("version 0.7-live-test\n\n");
+        dashboard.getDisplayInfo().appendTo(b);
+        b.append('\n');
+        b.append("DATA SOURCE      = ").append(hub.getSourceLabel()).append('\n');
+        b.append("MODE             = ").append(hub.isLive() ? "LIVE" : "DEMO").append('\n');
+        b.append('\n').append("-- КАНАЛЫ --\n");
+        Channel[] all = hub.getData().allChannels();
+        long now = System.currentTimeMillis();
+        for (int i = 0; i < all.length; i++) {
+            Channel c = all[i];
+            b.append(pad(c.id, 18)).append(pad(c.getStatusText(), 12))
+                    .append(pad(c.hasValue() ? c.text(2) : "-", 10))
+                    .append(pad(c.getSource() == null ? "-" : c.getSource(), 9))
+                    .append("n=").append(c.getUpdates())
+                    .append("  [").append(c.getObservedRange()).append(']');
+            if (c.getUpdatedAtMs() != 0) {
+                b.append("  age=").append(now - c.getUpdatedAtMs()).append("ms");
+            }
+            b.append('\n');
+        }
+        b.append('\n').append("-- ЗОНД --\n");
+        if (probe != null) {
+            b.append(probe.getReport());
+        }
+        return b.toString();
+    }
+
+    private static String pad(String s, int n) {
+        StringBuilder b = new StringBuilder(s == null ? "-" : s);
+        while (b.length() < n) {
+            b.append(' ');
+        }
+        return b.toString();
     }
 
     @Override

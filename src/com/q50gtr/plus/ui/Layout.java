@@ -1,105 +1,166 @@
 package com.q50gtr.plus.ui;
 
 /**
- * Координаты динамического слоя, снятые с MASTER.
+ * Раскладка под фактический размер окна, а не под выдуманный.
  *
- * Фон экрана — растр 840x480, полученный из утверждённого эталона
- * (tools/uispec/make_backgrounds.py). Поэтому система координат здесь —
- * пиксели самого эталона, а не абстрактная сетка: всё, что рисует Canvas,
- * должно лечь ровно поверх фона.
+ * Пропорции эталона (548x480 полезной области) и пропорции экрана ГУ не
+ * совпадают. Растянуть всё по X нельзя — приборы станут овальными. Поэтому:
  *
- * Кадрирование исходного коллажа уехало по экранам, поэтому левая кромка
- * рамки у каждого своя — см. {@link #frameX} и docs/UI-MASTER-SPEC.md, п.1.
+ *   вертикаль и размеры  — единый масштаб s = высота / 480;
+ *   горизонталь          — раздаётся по всей фактической ширине.
+ *
+ * Круги остаются кругами, боковых полей нет. Числа взяты из
+ * docs/UI-MASTER-SPEC.md, то есть измерены по эталону.
  */
 public final class Layout {
 
-    public static final float SCREEN_W = 840f;
-    public static final float SCREEN_H = 480f;
-    /** Полезная ширина эталона внутри кадра: остальное — чёрные поля. */
-    public static final float CONTENT_W = 536f;
+    /** Высота эталона. Ширина намеренно не константа: её даёт окно. */
+    public static final float DESIGN_H = 480f;
 
-    /** Левая кромка рамки экрана внутри кадра, по вкладкам. */
-    private static final float[] FRAME_X = {152f, 163f, 174f};
+    /* --- вертикаль в единицах эталона --- */
+    private static final float TOP_H = 44f;
+    private static final float NAV_H = 48f;
+    private static final float DIAL_CY = 181f;
+    private static final float DIAL_R = 128f;
+    private static final float TILE_Y = 304f;
+    private static final float TILE_Y_CHASSIS = 331f;
+    private static final float TILE_H = 92f;
 
-    /* --- приборы (спека, п.5) --- */
-    public static final float DIAL_CY = 181f;
-    public static final float DIAL_R = 128f;
-    private static final float[] DIAL_CX = {137f, 409f};
+    /* --- горизонтальные отступы в единицах эталона --- */
+    private static final float SIDE = 9f;
+    private static final float TILE_GAP = 6f;
+    private static final float ARROW_SIDE = 30.5f;
 
-    /* --- карточки (спека, п.6) --- */
-    public static final float TILE_X0 = 9f;
-    public static final float TILE_PITCH = 134f;
-    /**
-     * Значение в карточке начинается на этом отступе от её левого края.
-     * На ШАССИ эталон ставит его на 11 px правее, чем на двух других вкладках.
-     */
-    private static final float[] TILE_VALUE_DX = {48f, 48f, 59f};
-    public static final float TILE_VALUE_BASE = 372f;
-    public static final float TILE_VALUE_BASE_CHASSIS = 399f;
+    /** Фактический размер окна. */
+    public final float w;
+    public final float h;
+    /** Единый масштаб: всё, что имеет размер, умножается на него. */
+    public final float s;
 
-    /* --- верхняя полоса (спека, п.4) --- */
-    public static final float CLOCK_CX = 230.5f;
-    public static final float CLOCK_BASE = 36f;
-    public static final float TEMP_CX = 346.5f;
-    public static final float DEMO_CX = 425f;
+    public final float topH;
+    public final float navH;
+    public final float dialCy;
+    public final float dialR;
+    public final float tileY;
+    public final float tileYChassis;
+    public final float tileH;
+    public final float tileW;
+    public final float side;
+    public final float tileGap;
 
-    /* --- ШАССИ (спека, п.8) --- */
-    private static final float[] STRUT_CX = {44f, 296f};
-    public static final float PRESS_BASE_FRONT = 120f;
-    public static final float PRESS_BASE_REAR = 283f;
-    public static final float COL_VALUE_X = 417f;
-    private static final float[] COL_VALUE_BASE = {111f, 181f, 249f, 316f};
+    public Layout(float width, float height) {
+        w = width <= 0f ? 840f : width;
+        h = height <= 0f ? DESIGN_H : height;
+        s = h / DESIGN_H;
 
-    /* --- навигация: только для попадания пальцем, рисует её фон --- */
-    public static final float NAV_TOP = 432f;
-    private static final float TAB_SIDE = 61f;
-    private static final float TAB_PITCH = (548f - 2f * TAB_SIDE) / 3f;
+        topH = TOP_H * s;
+        navH = NAV_H * s;
+        dialCy = DIAL_CY * s;
+        tileY = TILE_Y * s;
+        tileYChassis = TILE_Y_CHASSIS * s;
+        tileH = TILE_H * s;
+        side = SIDE * s;
+        tileGap = TILE_GAP * s;
+        tileW = (w - 2f * side - 3f * tileGap) / 4f;
 
-    /** Подписи приборов на ТОПЛИВЕ эталон рисует на 6 px ниже. */
-    private static final float[] CAPTION_DY = {0f, 6f, 0f};
-
-    private final int index;
-    private final float fx;
-
-    public Layout(int page) {
-        index = page < 0 ? 0 : (page > 2 ? 2 : page);
-        fx = FRAME_X[index];
+        // Радиус ограничен по вертикали: сверху статус-полоса, снизу карточки.
+        // По горизонтали места теперь заведомо хватает, так что бьётся именно
+        // высота — ровно как на эталоне.
+        float byHeight = (tileY - topH) * 0.5f + 5f * s;
+        float wanted = DIAL_R * s;
+        dialR = wanted < byHeight ? wanted : byHeight;
     }
 
-    public float captionDy() {
-        return CAPTION_DY[index];
-    }
-
-    /** Левая кромка рамки этой вкладки в кадре 840x480. */
-    public float frameX() {
-        return fx;
-    }
-
-    public float x(float frameRelative) {
-        return fx + frameRelative;
-    }
-
+    /** Центры приборов: четверть и три четверти фактической ширины. */
     public float dialCx(int index) {
-        return fx + DIAL_CX[index];
+        return index == 0 ? w * 0.25f : w * 0.75f;
     }
 
-    public float tileValueX(int i) {
-        return fx + TILE_X0 + i * TILE_PITCH + TILE_VALUE_DX[index];
+    public float tileX(int index) {
+        return side + index * (tileW + tileGap);
     }
 
-    public float strutCx(int index) {
-        return fx + STRUT_CX[index];
+    public float contentY() {
+        return topH;
     }
 
-    public float colValueBase(int index) {
-        return COL_VALUE_BASE[index];
+    public float contentH() {
+        return h - topH - navH;
+    }
+
+    public float navTop() {
+        return h - navH;
+    }
+
+    /* --- верхняя полоса: края по краям окна, середина по долям ширины --- */
+    public float backCx() {
+        return ARROW_SIDE * s;
+    }
+
+    public float clockCx() {
+        return w * 0.43f;
+    }
+
+    public float tempCx() {
+        return w * 0.63f;
+    }
+
+    public float demoCx() {
+        return w * 0.775f;
+    }
+
+    public float signalCx() {
+        return w - 60f * s;
+    }
+
+    public float bluetoothCx() {
+        return w - 34f * s;
+    }
+
+    /* --- навигация --- */
+    public float navArrowLeftCx() {
+        return ARROW_SIDE * s;
+    }
+
+    public float navArrowRightCx() {
+        return w - ARROW_SIDE * s;
+    }
+
+    public float tabSide() {
+        return 61f * s;
+    }
+
+    public float tabPitch() {
+        return (w - 2f * tabSide()) / 3f;
     }
 
     public float tabCx(int index) {
-        return fx + TAB_SIDE + TAB_PITCH * (index + 0.5f);
+        return tabSide() + tabPitch() * (index + 0.5f);
     }
 
-    public float tabHalfWidth() {
-        return TAB_PITCH * 0.5f;
+    /* --- ШАССИ --- */
+    public float chassisSplitX() {
+        return w * 0.63f;
+    }
+
+    public float chassisColX() {
+        return chassisSplitX();
+    }
+
+    public float chassisColW() {
+        return w - side - chassisColX();
+    }
+
+    public float chassisCardY(int index) {
+        return (58f + index * 68.25f) * s;
+    }
+
+    public float chassisCardH() {
+        return 64f * s;
+    }
+
+    /** Кегль текста в единицах эталона, приведённый к экрану. */
+    public float text(float designSize) {
+        return designSize * s;
     }
 }

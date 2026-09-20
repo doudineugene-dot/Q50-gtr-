@@ -1,5 +1,6 @@
 package com.q50gtr.plus.ui;
 
+import android.app.Activity;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.view.MotionEvent;
@@ -13,11 +14,14 @@ import com.q50gtr.plus.data.VehicleProbe;
 import java.util.Calendar;
 
 /**
- * Вся панель в одной View: фоновый растр вкладки плюс динамический слой
- * поверх него. Дочерних вью нет, onDraw один.
+ * Вся панель в одной View.
  *
- * Система координат — 840x480 пикселей утверждённого эталона; canvas
- * масштабируется под фактический размер вью один раз в начале onDraw.
+ * Рисуется целиком Canvas в фактическом размере окна: никакого промежуточного
+ * растра на весь экран и никакого canvas.scale() поверх него. Двойного
+ * масштабирования нет, поэтому кромки и текст остаются резкими.
+ *
+ * Раскладка берётся из {@link Layout}, который строится по реальным
+ * getWidth()/getHeight(), а не по выдуманным 840x480.
  */
 public final class DashboardView extends View implements Runnable {
 
@@ -27,25 +31,20 @@ public final class DashboardView extends View implements Runnable {
 
     private final Theme theme = new Theme();
     private final DataHub hub;
-    private final AssetRenderer assets;
     private final Page[] pages = new Page[]{new EnginePage(), new FuelPage(), new ChassisPage()};
-    private final Layout[] layouts = new Layout[]{new Layout(0), new Layout(1), new Layout(2)};
+    private final String[] titles = new String[3];
     private final Calendar calendar = Calendar.getInstance();
+
+    private final DisplayInfo display = new DisplayInfo();
+    private Layout layout = new Layout(840f, 480f);
 
     /** Фиксированное время: нужно офлайн-рендеру, чтобы кадр был повторяемым. */
     private String clockOverride;
 
-    /* Скрытый диагностический оверлей: по умолчанию выключен, утверждённый
-     * визуал не трогает. Включается тройным касанием левого верхнего угла. */
+    /* Скрытый диагностический оверлей: по умолчанию выключен. */
     private VehicleProbe probe;
     private boolean diag;
-    private int cornerTaps;
-    private long cornerTapAtMs;
-
-    /** Равномерный масштаб и отступы вписывания, считаются от размера вью. */
-    private float scale = 1f;
-    private float padX;
-    private float padY;
+    private long clockPressAtMs;
 
     private int page;
     private float dragX;
@@ -58,9 +57,15 @@ public final class DashboardView extends View implements Runnable {
     public DashboardView(Context context, DataHub hub) {
         super(context);
         this.hub = hub;
-        this.assets = new AssetRenderer(context);
         setBackgroundColor(Theme.BG);
         touchSlop = ViewConfiguration.get(context).getScaledTouchSlop();
+        Sprites.load(context);
+        for (int i = 0; i < pages.length; i++) {
+            titles[i] = pages[i].title();
+        }
+        if (context instanceof Activity) {
+            display.readWindow((Activity) context);
+        }
     }
 
     public void setClockOverride(String hhmm) {
@@ -69,6 +74,10 @@ public final class DashboardView extends View implements Runnable {
 
     public void setProbe(VehicleProbe p) {
         probe = p;
+    }
+
+    public DisplayInfo getDisplayInfo() {
+        return display;
     }
 
     public void start() {
@@ -102,66 +111,48 @@ public final class DashboardView extends View implements Runnable {
 
     @Override
     protected void onDraw(Canvas canvas) {
+        display.readDraw(this, canvas);
+
+        Layout l = layout;
+        if (l.w != getWidth() || l.h != getHeight()) {
+            l = new Layout(getWidth(), getHeight());
+            layout = l;
+        }
+
         VehicleData d = hub.getData();
         Theme t = theme;
 
-        // Масштаб равномерный: экран ГУ не обязан быть ровно 840x480 (по
-        // данным проекта q50 он 800x480), а растягивать по одной оси нельзя —
-        // приборы превратятся в овалы. Кадр вписывается целиком и центрируется.
-        measure();
-
-        int base = canvas.save();
         canvas.drawColor(Theme.BG);
-        canvas.translate(padX, padY);
-        canvas.scale(scale, scale);
 
-        t.rect.set(0f, 0f, Layout.SCREEN_W, Layout.SCREEN_H);
-        canvas.drawRect(t.rect, t.fill(Theme.BG));
+        OemStatusBar.draw(canvas, t, l, clock(),
+                d.ambientTemp.hasValue() ? d.ambientTemp.text(0) : "--",
+                hub.isDemoActive() ? "DEMO" : null);
 
+        // Страницы рисуют в координатах окна, как и размечено в Layout;
+        // сдвигать их ещё раз на высоту полосы было бы двойным смещением.
+        int clip = canvas.save();
+        canvas.clipRect(0f, l.contentY(), l.w, l.contentY() + l.contentH());
         if (dragging && dragX != 0f) {
             int neighbour = dragX < 0f ? page + 1 : page - 1;
-            drawScreen(canvas, d, page, dragX);
+            drawPage(canvas, d, l, page, dragX);
             if (neighbour >= 0 && neighbour < pages.length) {
-                drawScreen(canvas, d, neighbour,
-                        dragX + (dragX < 0f ? Layout.SCREEN_W : -Layout.SCREEN_W));
+                drawPage(canvas, d, l, neighbour, dragX + (dragX < 0f ? l.w : -l.w));
             }
         } else {
-            drawScreen(canvas, d, page, 0f);
+            drawPage(canvas, d, l, page, 0f);
         }
+        canvas.restoreToCount(clip);
+
+        OemNavigation.draw(canvas, t, l, titles, page);
 
         if (diag) {
-            DiagOverlay.draw(canvas, t, hub, probe, System.currentTimeMillis());
+            DiagOverlay.draw(canvas, t, l, hub, probe, display, System.currentTimeMillis());
         }
-
-        canvas.restoreToCount(base);
     }
 
-    private void measure() {
-        // Вписываем не весь кадр 840x480, а полезную область эталона: по краям
-        // кадра всё равно чёрные поля, и ужимать картинку ради них — значит
-        // без нужды пересэмплировать её. На экране ГУ (800x480 или 840x480)
-        // это даёт масштаб ровно 1.0, то есть пиксель в пиксель.
-        float sx = getWidth() / Layout.CONTENT_W;
-        float sy = getHeight() / Layout.SCREEN_H;
-        scale = sx < sy ? sx : sy;
-        if (scale > 1f) {
-            scale = 1f;
-        }
-        if (scale <= 0f) {
-            scale = 1f;
-        }
-        padX = (getWidth() - Layout.SCREEN_W * scale) * 0.5f;
-        padY = (getHeight() - Layout.SCREEN_H * scale) * 0.5f;
-    }
-
-    private void drawScreen(Canvas canvas, VehicleData d, int index, float offsetX) {
+    private void drawPage(Canvas canvas, VehicleData d, Layout l, int index, float offsetX) {
         int save = canvas.save();
         canvas.translate(offsetX, 0f);
-        assets.draw(canvas, index, 0f);
-        Layout l = layouts[index];
-        OemStatusBar.draw(canvas, theme, l, clock(),
-                d.ambientTemp.hasValue() ? d.ambientTemp.text(0) : "--",
-                hub.isDemoActive());
         pages[index].draw(canvas, theme, l, d);
         canvas.restoreToCount(save);
     }
@@ -189,9 +180,9 @@ public final class DashboardView extends View implements Runnable {
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-        measure();
-        float x = (event.getX() - padX) / scale;
-        float y = (event.getY() - padY) / scale;
+        Layout l = layout;
+        float x = event.getX();
+        float y = event.getY();
 
         switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
@@ -199,19 +190,19 @@ public final class DashboardView extends View implements Runnable {
                 downY = y;
                 dragX = 0f;
                 dragging = false;
-                checkDiagGesture(x, y);
+                clockPressAtMs = isOnClock(l, x, y) ? System.currentTimeMillis() : 0L;
                 return true;
 
             case MotionEvent.ACTION_MOVE: {
                 float dx = x - downX;
                 float dy = y - downY;
-                float slop = touchSlop / scale;
-                if (!dragging && Math.abs(dx) > slop && Math.abs(dx) > Math.abs(dy)
-                        && downY < Layout.NAV_TOP) {
+                if (!dragging && Math.abs(dx) > touchSlop && Math.abs(dx) > Math.abs(dy)
+                        && downY < l.navTop()) {
                     dragging = true;
+                    clockPressAtMs = 0L;
                 }
                 if (dragging) {
-                    dragX = clampDrag(dx);
+                    dragX = clampDrag(l, dx);
                     invalidate();
                 }
                 return true;
@@ -219,6 +210,15 @@ public final class DashboardView extends View implements Runnable {
 
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_CANCEL: {
+                // Долгое нажатие на часы переключает диагностический оверлей.
+                if (clockPressAtMs != 0L && isOnClock(l, x, y)
+                        && System.currentTimeMillis() - clockPressAtMs >= 900L) {
+                    clockPressAtMs = 0L;
+                    diag = !diag;
+                    invalidate();
+                    return true;
+                }
+                clockPressAtMs = 0L;
                 if (dragging) {
                     if (dragX <= -SWIPE_COMMIT && page < pages.length - 1) {
                         page++;
@@ -230,11 +230,11 @@ public final class DashboardView extends View implements Runnable {
                     invalidate();
                     return true;
                 }
-                if (event.getAction() == MotionEvent.ACTION_UP && y >= Layout.NAV_TOP) {
-                    int tapped = tabAt(x);
+                if (event.getAction() == MotionEvent.ACTION_UP && y >= l.navTop()) {
+                    int tapped = tabAt(l, x);
                     if (tapped >= 0) {
                         setPage(tapped);
-                    } else if (x < layouts[page].tabCx(0) - layouts[page].tabHalfWidth()) {
+                    } else if (x < l.tabSide()) {
                         setPage(page - 1);
                     } else {
                         setPage(page + 1);
@@ -248,26 +248,11 @@ public final class DashboardView extends View implements Runnable {
         }
     }
 
-    /** Тройное касание левого верхнего угла в пределах секунды. */
-    private void checkDiagGesture(float x, float y) {
-        long now = System.currentTimeMillis();
-        if (x > 70f || y > 44f) {
-            cornerTaps = 0;
-            return;
-        }
-        if (now - cornerTapAtMs > 1000L) {
-            cornerTaps = 0;
-        }
-        cornerTapAtMs = now;
-        cornerTaps++;
-        if (cornerTaps >= 3) {
-            cornerTaps = 0;
-            diag = !diag;
-            invalidate();
-        }
+    private boolean isOnClock(Layout l, float x, float y) {
+        return y < l.topH && Math.abs(x - l.clockCx()) < 60f * l.s;
     }
 
-    private float clampDrag(float dx) {
+    private float clampDrag(Layout l, float dx) {
         if (dx < 0f && page >= pages.length - 1) {
             return dx * 0.25f;
         }
@@ -277,10 +262,9 @@ public final class DashboardView extends View implements Runnable {
         return dx;
     }
 
-    private int tabAt(float x) {
-        Layout l = layouts[page];
+    private int tabAt(Layout l, float x) {
         for (int i = 0; i < pages.length; i++) {
-            if (Math.abs(x - l.tabCx(i)) <= l.tabHalfWidth()) {
+            if (Math.abs(x - l.tabCx(i)) <= l.tabPitch() * 0.5f) {
                 return i;
             }
         }

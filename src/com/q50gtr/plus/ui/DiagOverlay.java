@@ -21,55 +21,62 @@ public final class DiagOverlay {
     private DiagOverlay() {
     }
 
-    public static void draw(Canvas c, Theme t, DataHub hub, VehicleProbe probe, long nowMs) {
+    public static void draw(Canvas c, Theme t, Layout l, DataHub hub,
+                            VehicleProbe probe, DisplayInfo display, long nowMs) {
         VehicleData d = hub.getData();
 
-        float w = 330f;
-        float x = Layout.SCREEN_W - w - 8f;
-        float y = 52f;
-        float lh = 14f;
+        float w = 340f * l.s;
+        float x = l.w - w - 8f * l.s;
+        float y = 52f * l.s;
+        float lh = 14f * l.s;
 
-        t.rect.set(x, y, x + w, y + lh * 15f + 12f);
+        t.rect.set(x, y, x + w, y + lh * 17f + 12f * l.s);
         c.drawRoundRect(t.rect, 4f, 4f, t.fill(0xE0000000));
         c.drawRoundRect(t.rect, 4f, 4f, t.stroke(Theme.ACCENT, 1f));
 
-        float ty = y + 16f;
-        ty = line(c, t, x + 8f, ty, lh, "SOURCE: " + hub.getSourceLabel(), Theme.ACCENT);
-        ty = line(c, t, x + 8f, ty, lh,
+        float ty = y + 16f * l.s;
+        if (display != null) {
+            ty = line(c, t, x + 8f * l.s, ty, lh, display.summary(), Theme.LABEL);
+        }
+        ty = line(c, t, x + 8f * l.s, ty, lh,
+                "LAYOUT: " + (int) l.w + "x" + (int) l.h + "  s=" + l.s
+                        + "  r=" + (int) l.dialR, Theme.LABEL);
+        ty = line(c, t, x + 8f * l.s, ty, lh, "SOURCE: " + hub.getSourceLabel(), Theme.ACCENT);
+        ty = line(c, t, x + 8f * l.s, ty, lh,
                 hub.isLive() ? "STATE:  LIVE" : "STATE:  DEMO (нет связи)",
                 hub.isLive() ? 0xFF6BD07A : Theme.WARN);
 
         if (hub.getInTouch() instanceof InTouchVehicleSource) {
             InTouchVehicleSource s = (InTouchVehicleSource) hub.getInTouch();
-            ty = line(c, t, x + 8f, ty, lh,
+            ty = line(c, t, x + 8f * l.s, ty, lh,
                     "INTOUCH: " + (s.isConnected() ? "CONNECTED" : "DISCONNECTED")
                             + "  bound=" + s.getBoundCount(), Theme.WHITE);
             long age = s.getLastFrameMs() == 0 ? -1 : nowMs - s.getLastFrameMs();
-            ty = line(c, t, x + 8f, ty, lh,
+            ty = line(c, t, x + 8f * l.s, ty, lh,
                     "RX: " + s.getFrameCount() + "  age="
                             + (age < 0 ? "--" : age + "ms"), Theme.WHITE);
             if (s.getLastError() != null) {
-                ty = line(c, t, x + 8f, ty, lh, "ERR: " + s.getLastError(), Theme.RED);
+                ty = line(c, t, x + 8f * l.s, ty, lh, "ERR: " + s.getLastError(), Theme.RED);
             }
         }
         if (probe != null) {
-            ty = line(c, t, x + 8f, ty, lh,
+            ty = line(c, t, x + 8f * l.s, ty, lh,
                     "PROBE: sensors=" + probe.getSensorCount()
                             + " veh=" + probe.getVehicleCount()
                             + " mapped=" + probe.getMappedCount(), Theme.LABEL);
-            ty = line(c, t, x + 8f, ty, lh,
+            ty = line(c, t, x + 8f * l.s, ty, lh,
                     "IVI_CAN_READ: " + (probe.isPermissionGranted() ? "GRANTED" : "DENIED"),
                     probe.isPermissionGranted() ? Theme.LABEL : Theme.RED);
         }
 
-        ty += 4f;
-        ty = channel(c, t, x + 8f, ty, lh, "RPM", d.rpm, nowMs);
-        ty = channel(c, t, x + 8f, ty, lh, "SPEED", d.speed, nowMs);
-        ty = channel(c, t, x + 8f, ty, lh, "COOLANT", d.coolantTemp, nowMs);
-        ty = channel(c, t, x + 8f, ty, lh, "OIL P", d.oilPressure, nowMs);
-        ty = channel(c, t, x + 8f, ty, lh, "THROTTLE", d.throttle, nowMs);
-        ty = channel(c, t, x + 8f, ty, lh, "BOOST", d.boostActual, nowMs);
-        channel(c, t, x + 8f, ty, lh, "KNOCK", d.knockRetard, nowMs);
+        ty += 4f * l.s;
+        ty = channel(c, t, x + 8f * l.s, ty, lh, "RPM", d.rpm, nowMs);
+        ty = channel(c, t, x + 8f * l.s, ty, lh, "SPEED", d.speed, nowMs);
+        ty = channel(c, t, x + 8f * l.s, ty, lh, "COOLANT", d.coolantTemp, nowMs);
+        ty = channel(c, t, x + 8f * l.s, ty, lh, "OIL P", d.oilPressure, nowMs);
+        ty = channel(c, t, x + 8f * l.s, ty, lh, "THROTTLE", d.throttle, nowMs);
+        ty = channel(c, t, x + 8f * l.s, ty, lh, "BOOST", d.boostActual, nowMs);
+        channel(c, t, x + 8f * l.s, ty, lh, "KNOCK", d.knockRetard, nowMs);
     }
 
     private static float channel(Canvas c, Theme t, float x, float y, float lh,
@@ -88,7 +95,7 @@ public final class DiagOverlay {
 
     private static float line(Canvas c, Theme t, float x, float y, float lh,
                               String s, int colour) {
-        c.drawText(s, x, y, t.text(colour, 11f, Paint.Align.LEFT, false));
+        c.drawText(s, x, y, t.text(colour, lh * 0.78f, Paint.Align.LEFT, false));
         return y + lh;
     }
 }

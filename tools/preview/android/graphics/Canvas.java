@@ -56,6 +56,9 @@ public class Canvas {
         g.clip(new Rectangle2D.Float(l, t, r - l, b - t));
     }
 
+    public int getWidth() { return 840; }
+    public int getHeight() { return 480; }
+
     public void drawColor(int color) {
         g.setPaint(new Color(color, true));
         g.fill(new Rectangle2D.Float(-10000f, -10000f, 20000f, 20000f));
