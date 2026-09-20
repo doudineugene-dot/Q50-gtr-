@@ -65,20 +65,21 @@ public final class OemTile {
                 s = "+" + s;
             }
         }
-        Paint p = t.text(color, size, Paint.Align.LEFT, false);
+        Paint p = t.textFor(s, color, size, Paint.Align.LEFT, false);
         float vw = p.measureText(s);
         c.drawText(s, x, baseline, p);
         if (ch.hasValue() && unit != null && unit.length() > 0) {
             c.drawText(unit, x + vw + gap, baseline,
-                    t.text(Theme.LABEL, size * 0.45f, Paint.Align.LEFT, false));
+                    t.textFor(unit, Theme.LABEL, size * 0.45f, Paint.Align.LEFT, false));
         }
     }
 
     /** Значение, выключенное по центру: давления в стойках на ШАССИ. */
     public static void centred(Canvas c, Theme t, float cx, float baseline,
                                Channel ch, int decimals, float size) {
-        c.drawText(ch.hasValue() ? ch.text(decimals) : "—", cx, baseline,
-                t.text(ch.hasValue() ? Theme.WHITE : Theme.VALUE_DIM, size,
+        String s = ch.hasValue() ? ch.text(decimals) : "—";
+        c.drawText(s, cx, baseline,
+                t.textFor(s, ch.hasValue() ? Theme.WHITE : Theme.VALUE_DIM, size,
                         Paint.Align.CENTER, false));
     }
 

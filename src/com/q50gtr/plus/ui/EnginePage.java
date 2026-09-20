@@ -29,7 +29,7 @@ public final class EnginePage implements Page {
 
         OemDial.draw(c, t, l.dialCx(1), cy, r, d.boostActual,
                 -1f, 2f, 2, 6, 1, 1.8f, "BOOST", "bar", 1f, 1, false, null,
-                boostMotion.update(d.boostActual, -1f, 2f, now));
+                boostMotion.update(d.boostActual, -1f, 2f, now), 9);
 
         tile(c, t, l, 0, Icons.COOLANT, "ОХЛ. ЖИДКОСТЬ", d.coolantTemp, 0, "°C", 105f, 112f);
         tile(c, t, l, 1, Icons.OIL_TEMP, "ТЕМП. МАСЛА", d.oilTemp, 0, "°C", 125f, 138f);

@@ -26,10 +26,10 @@ public final class FuelPage implements Page {
 
         OemDial.draw(c, t, l.dialCx(0), cy, r, d.lpfp,
                 0f, 10f, 1, 10, 2, 9f, "LPFP", "bar", 1f, 0, true, "НЕТ ДАННЫХ",
-                lpfpMotion.update(d.lpfp, 0f, 10f, now));
+                lpfpMotion.update(d.lpfp, 0f, 10f, now), 2);
         OemDial.draw(c, t, l.dialCx(1), cy, r, d.hpfpActual,
                 0f, 250f, 0, 5, 1, Float.NaN, "HPFP", "bar", 1f, 0, true, null,
-                hpfpMotion.update(d.hpfpActual, 0f, 250f, now));
+                hpfpMotion.update(d.hpfpActual, 0f, 250f, now), 8);
 
         EnginePage.tile(c, t, l, 0, Icons.FUEL, "КОРРЕКЦИЯ ТОПЛИВА", d.stftB1, 0, OemTile.SIGNED, Float.NaN, Float.NaN);
         EnginePage.tile(c, t, l, 1, Icons.LAMBDA, "СМЕСЬ (AFR)", d.afrB1, 1, "", Float.NaN, Float.NaN);

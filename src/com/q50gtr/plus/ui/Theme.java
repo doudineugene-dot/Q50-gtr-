@@ -6,6 +6,7 @@ import android.graphics.Path;
 import android.graphics.RadialGradient;
 import android.graphics.RectF;
 import android.graphics.Shader;
+import android.content.Context;
 import android.graphics.Typeface;
 
 /**
@@ -27,9 +28,32 @@ public final class Theme {
 
     /* Циферблат на эталоне почти чёрный: пипетка по радиусу даёт 2..10 по
      * всем каналам, никакого синего подсвета в полсилы там нет. */
-    public static final int DIAL_IN = 0xFF05080F;
-    public static final int DIAL_OUT = 0xFF000103;
     public static final int RING_DARK = 0xFF000002;
+
+    /*
+     * Подсветка циферблата. Замер по эталону между штрихами (25-й процентиль
+     * по углу, сектор без красной зоны) вдоль радиуса даёт не просто чёрный
+     * фон, а лавандовый ореол, прижатый к полосе делений:
+     *
+     *   r/R  0.60  0.78  0.82  0.86  0.88  0.90  0.92
+     *   цвет  1,4,7  2,4,7 10,13,17 19,22,29 30,32,42 40,41,54  2,3,6
+     *
+     * То есть свет идёт из-под шкалы наружу, на 0.91 обрывается тёмным
+     * зазором, и уже за ним начинается металл безеля. Именно этого подсвета
+     * не хватало: одна заливка чёрным давала плоский, «нарисованный» диск.
+     * Задаётся одним многоточечным RadialGradient с радиусом ровно R, чтобы
+     * позиции стопов читались как доли радиуса прибора.
+     */
+    private static final int[] DIAL_STOPS_COLOR = {
+            0xFF0D1116, 0xFF070B0F, 0xFF04070B, 0xFF010407, 0xFF020507,
+            0xFF0B0E13, 0xFF161A23, 0xFF2A2B39, 0xFF232433, 0xFF020306,
+            0xFF03050A,
+    };
+    private static final float[] DIAL_STOPS_AT = {
+            0.00f, 0.12f, 0.35f, 0.62f, 0.780f,
+            0.830f, 0.870f, 0.903f, 0.912f, 0.926f,
+            1.00f,
+    };
 
     /** Разделитель под статус-полосой: сине-лавандовый, не серый. */
     public static final int RULE = 0xFF8A8EB7;
@@ -53,20 +77,15 @@ public final class Theme {
     public static final int LABEL = 0xFF8A94A4;
     public static final int VALUE_DIM = 0xFF4A5462;
 
-    /*
-     * Стрелка и ступица по замерам эталона. Ступица там тёмная: радиальный
-     * профиль даёт 25..33 по яркости внутри и слабый ободок 25..37 на r≈18.
-     */
+    /* Стрелка по замерам эталона; цвета ступицы заданы на месте отрисовки,
+     * там же, где снят её радиальный профиль. */
     public static final int NEEDLE = 0xFFFFFFFF;
-    public static final int HUB_RIM = 0xFF2A3037;
-    public static final int HUB_FILL = 0xFF0E1317;
-    public static final int HUB_CORE = 0xFF080B10;
 
     public static final int ACCENT = 0xFF8E86FF;
     public static final int TAB_ACTIVE = 0xFF303750;
     public static final int RED = 0xFF9E1219;
     /** Красная зона шкалы: на эталоне она светлее и менее густая, чем алерт. */
-    public static final int RED_ZONE = 0xFFBA3E31;
+    public static final int RED_ZONE = 0xFFC21E1C;
     public static final int WARN = 0xFFE8A33A;
 
     public final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.DITHER_FLAG);
@@ -86,15 +105,42 @@ public final class Theme {
     public final Typeface regular;
     public final Typeface bold;
 
+
     private Shader bezelShader;
     private Shader dialShader;
     private float shaderRadius = -1f;
 
+    /**
+     * Тонкое начертание для цифр и латиницы (Lato Light, OFL — см.
+     * assets/fonts/README.md). На Android 2.3 светлого начертания в системе
+     * нет вообще, а на эталоне крупные значения именно тонкие.
+     *
+     * Кириллицы в этой копии Lato нет, поэтому она применяется только там,
+     * где строка из латиницы, цифр и знаков; подписи остаются системными —
+     * на эталоне они и так нормального веса.
+     */
+    public final Typeface light;
+
     public Theme() {
+        this(null);
+    }
+
+    public Theme(Context context) {
         Typeface cond = Typeface.create("sans-serif-condensed", Typeface.NORMAL);
         regular = cond != null ? cond : Typeface.SANS_SERIF;
         Typeface condBold = Typeface.create("sans-serif-condensed", Typeface.BOLD);
         bold = condBold != null ? condBold : Typeface.DEFAULT_BOLD;
+
+        Typeface lt = null;
+        if (context != null) {
+            try {
+                lt = Typeface.createFromAsset(context.getAssets(), "fonts/Lato-Light.ttf");
+            } catch (Throwable t) {
+                // Ресурса нет или он битый — работаем системным шрифтом.
+                lt = null;
+            }
+        }
+        light = lt;
 
         fill.setStyle(Paint.Style.FILL);
         stroke.setStyle(Paint.Style.STROKE);
@@ -136,6 +182,37 @@ public final class Theme {
         return text;
     }
 
+    /**
+     * Начертание под конкретную строку: тонкое, если в ней только латиница,
+     * цифры и знаки, и системное, если есть кириллица. Проверка по строке, а
+     * не по месту вызова: так нельзя случайно отправить кириллицу в шрифт,
+     * где её нет.
+     */
+    public Paint textFor(String s, int color, float size, Paint.Align align,
+                         boolean boldFace) {
+        Paint p = text(color, size, align, boldFace);
+        if (light != null && !boldFace && isLatin(s)) {
+            p.setTypeface(light);
+            // Lato Light заметно у́же системного шрифта, поэтому дополнительное
+            // сжатие ей не нужно.
+            p.setTextScaleX(1f);
+        }
+        return p;
+    }
+
+    private static boolean isLatin(String s) {
+        if (s == null) {
+            return false;
+        }
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c > 0x24F && c != 0x2014 && c != 0x2013) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     private void ensureDialShaders(float r) {
         if (shaderRadius == r) {
             return;
@@ -143,8 +220,8 @@ public final class Theme {
         bezelShader = new LinearGradient(-r, -r, r * 0.6f, r,
                 new int[]{BEZEL_HI, BEZEL_LO, BEZEL_MID, BEZEL_LO, BEZEL_HI},
                 new float[]{0f, 0.22f, 0.52f, 0.78f, 1f}, Shader.TileMode.CLAMP);
-        dialShader = new RadialGradient(0f, -r * 0.10f, r * 0.95f,
-                DIAL_IN, DIAL_OUT, Shader.TileMode.CLAMP);
+        dialShader = new RadialGradient(0f, 0f, r,
+                DIAL_STOPS_COLOR, DIAL_STOPS_AT, Shader.TileMode.CLAMP);
         shaderRadius = r;
     }
 
@@ -201,14 +278,43 @@ public final class Theme {
      * положение снято с эталона.
      */
     public Paint textOutline(float size, float width, Paint.Align align, boolean boldFace) {
+        return textStroke(null, 0xC8000000, size, width, align, boldFace);
+    }
+
+    /**
+     * Та же обводка, но по той же гарнитуре, какой будет нарисована заливка.
+     * Без этого обводка под латиницей набиралась системным сжатым шрифтом, а
+     * заливка — Lato Light: контуры расходились и подпись двоилась.
+     */
+    public Paint textOutline(String s, float size, float width, Paint.Align align,
+                             boolean boldFace) {
+        return textStroke(s, 0xC8000000, size, width, align, boldFace);
+    }
+
+    /**
+     * Мягкое свечение под текстом: широкая полупрозрачная обводка цветом
+     * штрихов. На эталоне цифры шкалы светятся, а не вырезаны из черноты;
+     * размытия на Android 2.3 нет, и обводка — самый дешёвый его заменитель.
+     */
+    public Paint textGlow(String s, float size, float width, Paint.Align align) {
+        return textStroke(s, 0x1CF3EDF6, size, width, align, false);
+    }
+
+    private Paint textStroke(String s, int color, float size, float width,
+                             Paint.Align align, boolean boldFace) {
         text.setShader(null);
-        text.setColor(0xC8000000);
+        text.setColor(color);
         text.setStyle(Paint.Style.STROKE);
         text.setStrokeWidth(width);
         text.setTextSize(size);
-        text.setTextScaleX(CONDENSE);
         text.setTextAlign(align);
-        text.setTypeface(boldFace ? bold : regular);
+        if (s != null && light != null && !boldFace && isLatin(s)) {
+            text.setTypeface(light);
+            text.setTextScaleX(1f);
+        } else {
+            text.setTypeface(boldFace ? bold : regular);
+            text.setTextScaleX(CONDENSE);
+        }
         return text;
     }
 

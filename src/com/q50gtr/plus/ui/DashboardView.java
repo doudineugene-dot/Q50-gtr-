@@ -29,7 +29,7 @@ public final class DashboardView extends View implements Runnable {
     private static final long FRAME_MS = 50L;
     private static final float SWIPE_COMMIT = 70f;
 
-    private final Theme theme = new Theme();
+    private final Theme theme;
     private final DataHub hub;
     private final Page[] pages = new Page[]{new EnginePage(), new FuelPage(), new ChassisPage()};
     private final String[] titles = new String[3];
@@ -62,6 +62,7 @@ public final class DashboardView extends View implements Runnable {
 
     public DashboardView(Context context, DataHub hub) {
         super(context);
+        this.theme = new Theme(context);
         this.hub = hub;
         setBackgroundColor(Theme.BG);
         touchSlop = ViewConfiguration.get(context).getScaledTouchSlop();

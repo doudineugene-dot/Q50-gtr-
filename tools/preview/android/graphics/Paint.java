@@ -53,7 +53,12 @@ public class Paint {
             if (avail.contains(f)) { pick = f; break; }
         }
         int st = (typeface != null && typeface.bold) ? java.awt.Font.BOLD : java.awt.Font.PLAIN;
-        java.awt.Font f = new java.awt.Font(pick, st, 10).deriveFont(textSize);
+        java.awt.Font f;
+        if (typeface != null && typeface.awt != null) {
+            f = typeface.awt.deriveFont(textSize);
+        } else {
+            f = new java.awt.Font(pick, st, 10).deriveFont(textSize);
+        }
         if (textScaleX != 1f) {
             // Android сжимает глифы по горизонтали; в Java2D это аффинный
             // трансформ шрифта с тем же коэффициентом.

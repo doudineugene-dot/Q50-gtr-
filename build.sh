@@ -131,6 +131,7 @@ say "1/5 aapt: ресурсы и манифест (versionCode=$VERSION_CODE)"
 aapt package -f \
     -M "$BUILD_DIR/AndroidManifest.xml" \
     -S res \
+    -A assets \
     -I "$ANDROID_JAR" \
     -J "$BUILD_DIR/gen" \
     -F "$UNSIGNED"

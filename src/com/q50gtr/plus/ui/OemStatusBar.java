@@ -27,10 +27,10 @@ public final class OemStatusBar {
         chevron(c, t, l.backCx(), mid, 9f * s, 12f * s, false);
 
         c.drawText(clock, l.clockCx(), base,
-                t.text(Theme.WHITE, l.text(22f), Paint.Align.CENTER, false));
+                t.textFor(clock, Theme.WHITE, l.text(22f), Paint.Align.CENTER, false));
 
         // Значение и «°C» стоят рядом; блок целиком центрируется.
-        Paint vp = t.text(Theme.WHITE, l.text(23.5f), Paint.Align.LEFT, false);
+        Paint vp = t.textFor(temp, Theme.WHITE, l.text(23.5f), Paint.Align.LEFT, false);
         float vw = vp.measureText(temp);
         Paint up = t.text(Theme.WHITE, l.text(14f), Paint.Align.LEFT, false);
         float uw = up.measureText("°C");
