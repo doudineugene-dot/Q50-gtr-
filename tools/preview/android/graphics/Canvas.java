@@ -147,6 +147,17 @@ public class Canvas {
         } else if (p.getTextAlign() == Paint.Align.RIGHT) {
             tx = x - w;
         }
+        if (p.getStyle() == Paint.Style.STROKE) {
+            // Android при Style.STROKE обводит глифы; в Java2D это контур
+            // шрифта, обведённый тем же пером.
+            java.awt.font.GlyphVector gv =
+                    p.awtFont().createGlyphVector(g.getFontRenderContext(), text);
+            java.awt.Shape outline = gv.getOutline(tx, y);
+            g.setStroke(new java.awt.BasicStroke(p.getStrokeWidth(),
+                    java.awt.BasicStroke.CAP_ROUND, java.awt.BasicStroke.JOIN_ROUND));
+            g.draw(outline);
+            return;
+        }
         g.drawString(text, tx, y);
     }
 }

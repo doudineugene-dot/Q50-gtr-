@@ -35,6 +35,13 @@ public final class OemDial {
     /** Радиальный профиль яркости кольца: внутри тускло, пик у 0.94, к краю спад. */
     private static final float[] BEZEL_BANDS = {0.30f, 0.72f, 1.00f, 0.75f, 0.40f, 0.31f};
 
+    /** Колец в ореоле вокруг прибора. */
+    private static final int GLOW_STEPS = 7;
+
+    /** Кончик и хвост стрелки в долях радиуса — по замерам эталона. */
+    private static final float NEEDLE_TIP = 0.780f;
+    private static final float NEEDLE_TAIL = 0.02f;
+
     private OemDial() {
     }
 
@@ -44,6 +51,21 @@ public final class OemDial {
                             String caption, String unit,
                             float tickScale, int tickDecimals,
                             boolean showValue, String emptyNote) {
+        draw(c, t, cx, cy, r, ch, min, max, decimals, majorTicks, labelEvery,
+                redlineFrom, caption, unit, tickScale, tickDecimals,
+                showValue, emptyNote, Float.NaN);
+    }
+
+    /**
+     * {@code needleAt} — положение стрелки в долях шкалы, уже сглаженное
+     * {@link NeedleMotion}. NaN означает «считать прямо из значения».
+     */
+    public static void draw(Canvas c, Theme t, float cx, float cy, float r,
+                            Channel ch, float min, float max, int decimals,
+                            int majorTicks, int labelEvery, float redlineFrom,
+                            String caption, String unit,
+                            float tickScale, int tickDecimals,
+                            boolean showValue, String emptyNote, float needleAt) {
 
         int save = c.save();
         c.translate(cx, cy);
@@ -53,12 +75,25 @@ public final class OemDial {
 
         dialBody(c, t, r, ch, min, max, decimals, majorTicks, labelEvery,
                 redlineFrom, caption, unit, tickScale, tickDecimals,
-                showValue, emptyNote);
+                showValue, emptyNote, needleAt);
 
         c.restoreToCount(save);
     }
 
     private static void drawRings(Canvas c, Theme t, float r) {
+        // Мягкий ореол вокруг прибора: на эталоне кольцо не висит на плоском
+        // чёрном, под ним есть подсвет. Несколько полупрозрачных колец дают
+        // его дешевле, чем RadialGradient на каждый кадр.
+        for (int i = 0; i < GLOW_STEPS; i++) {
+            float k = (i + 1) / (float) GLOW_STEPS;
+            float gr = r * (1f + 0.09f * k);
+            int alpha = (int) (12f * (1f - k) * (1f - k));
+            if (alpha <= 0) {
+                continue;
+            }
+            c.drawCircle(0f, 0f, gr, t.fill((alpha << 24) | 0x5A6A9A));
+        }
+
         // Кольцо рисуется дугами, а не растром: растр пришлось бы
         // масштабировать под фактический размер прибора, а это ровно то мыло,
         // из-за которого от полноэкранного фона и отказались.
@@ -88,7 +123,8 @@ public final class OemDial {
                                  int majorTicks, int labelEvery, float redlineFrom,
                                  String caption, String unit,
                                  float tickScale, int tickDecimals,
-                                 boolean showValue, String emptyNote) {
+                                 boolean showValue, String emptyNote,
+                                 float needleAt) {
 
         // 2. Красная зона — сектор во всю ширину полосы делений.
         if (!Float.isNaN(redlineFrom) && redlineFrom > min && redlineFrom < max) {
@@ -98,7 +134,7 @@ public final class OemDial {
             float f = (redlineFrom - min) / (max - min);
             float from = ARC_START + ARC_SWEEP * f;
             c.drawArc(t.rect, from, ARC_START + ARC_SWEEP - from, false,
-                    t.stroke(Theme.RED, band));
+                    t.stroke(Theme.RED_ZONE, band));
         }
 
         // 3. Промежуточные деления — посередине между основными.
@@ -112,18 +148,19 @@ public final class OemDial {
         }
 
         // 4. Основные деления и подписи шкалы.
-        Paint tickText = t.text(Theme.TICK, r * 0.155f, Paint.Align.CENTER, false);
+        Paint tickText = t.text(Theme.TICK, r * 0.142f, Paint.Align.CENTER, false);
         for (int i = 0; i <= majorTicks; i++) {
             float f = (float) i / majorTicks;
             float value = min + (max - min) * f;
-            boolean hot = !Float.isNaN(redlineFrom) && value >= redlineFrom - 1e-4f;
             float a = (float) Math.toRadians(ARC_START + ARC_SWEEP * f);
             float cos = (float) Math.cos(a), sin = (float) Math.sin(a);
+            // Деления и цифры в красной зоне на эталоне остаются светлыми —
+            // красным там окрашена только полоса под ними.
             c.drawLine(cos * r * TICK_MAJ_IN, sin * r * TICK_MAJ_IN,
                     cos * r * TICK_OUT, sin * r * TICK_OUT,
-                    t.stroke(hot ? Theme.RED : Theme.TICK, r * 0.038f));
+                    t.stroke(Theme.TICK, r * 0.030f));
             if (labelEvery > 0 && i % labelEvery == 0) {
-                tickText.setColor(hot ? Theme.RED : Theme.TICK);
+                tickText.setColor(Theme.TICK);
                 c.drawText(Channel.format(value / tickScale, tickDecimals),
                         cos * r * LABEL_R, sin * r * LABEL_R + r * 0.055f, tickText);
             }
@@ -134,34 +171,46 @@ public final class OemDial {
         // 5. Стрелка и ступица. Рисуются до подписей, иначе стрелка
         //    перечёркивает название прибора.
         if (has) {
-            float f = (ch.getValue() - min) / (max - min);
+            float f = Float.isNaN(needleAt)
+                    ? (ch.getValue() - min) / (max - min) : needleAt;
             f = f < 0f ? 0f : (f > 1f ? 1f : f);
             float a = (float) Math.toRadians(ARC_START + ARC_SWEEP * f);
             float cos = (float) Math.cos(a), sin = (float) Math.sin(a);
             boolean hot = !Float.isNaN(redlineFrom) && ch.getValue() >= redlineFrom;
+            // Клин, а не треугольник с широким основанием: на эталоне
+            // стрелка тонкая — 4..5 px у ступицы и 2 px у кончика.
             float nx = -sin, ny = cos;
-            float baseW = r * 0.042f;
+            float baseW = r * 0.0125f;
+            float tipW = r * 0.0070f;
             android.graphics.Path np = t.path;
             np.reset();
-            np.moveTo(cos * r * 0.760f, sin * r * 0.760f);
-            np.lineTo(-cos * r * 0.16f + nx * baseW, -sin * r * 0.16f + ny * baseW);
-            np.lineTo(-cos * r * 0.16f - nx * baseW, -sin * r * 0.16f - ny * baseW);
+            np.moveTo(cos * r * NEEDLE_TIP + nx * tipW, sin * r * NEEDLE_TIP + ny * tipW);
+            np.lineTo(cos * r * NEEDLE_TIP - nx * tipW, sin * r * NEEDLE_TIP - ny * tipW);
+            np.lineTo(-cos * r * NEEDLE_TAIL - nx * baseW, -sin * r * NEEDLE_TAIL - ny * baseW);
+            np.lineTo(-cos * r * NEEDLE_TAIL + nx * baseW, -sin * r * NEEDLE_TAIL + ny * baseW);
             np.close();
-            c.drawPath(np, t.fill(hot ? Theme.RED : 0xFFFFFFFF));
+            c.drawPath(np, t.fill(hot ? Theme.RED : Theme.NEEDLE));
         }
-        c.drawCircle(0f, 0f, r * 0.105f, t.fill(0xFF878F9C));
+        // Ступица тёмная: радиальный профиль эталона даёт 25..33 внутри.
+        c.drawCircle(0f, 0f, r * 0.145f, t.fill(Theme.HUB_RIM));
         c.drawCircle(0f, 0f, r * 0.084f, t.fill(0xFF2A313B));
         c.drawCircle(0f, 0f, r * 0.036f, t.fill(0xFF0E131B));
 
         // 6. Название, единица, цифровое значение.
         // Базовые линии с эталона: RPM на 137, x1000 на 152 при cy = 181.
         c.drawText(caption, 0f, -r * 0.344f,
+                t.textOutline(r * 0.125f, r * 0.055f, Paint.Align.CENTER, false));
+        c.drawText(caption, 0f, -r * 0.344f,
                 t.text(Theme.WHITE, r * 0.125f, Paint.Align.CENTER, false));
         if (unit != null) {
+            c.drawText(unit, 0f, -r * 0.227f,
+                    t.textOutline(r * 0.086f, r * 0.045f, Paint.Align.CENTER, false));
             c.drawText(unit, 0f, -r * 0.227f,
                     t.text(Theme.LABEL, r * 0.086f, Paint.Align.CENTER, false));
         }
         if (showValue && has) {
+            c.drawText(ch.text(decimals), 0f, r * 0.46f,
+                    t.textOutline(r * 0.215f, r * 0.060f, Paint.Align.CENTER, false));
             c.drawText(ch.text(decimals), 0f, r * 0.46f,
                     t.text(Theme.WHITE, r * 0.215f, Paint.Align.CENTER, false));
         } else if (!has && emptyNote != null) {

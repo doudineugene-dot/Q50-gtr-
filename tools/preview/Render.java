@@ -52,7 +52,7 @@ public final class Render {
 
         view.setSize(viewW, viewH);
         for (int page = 0; page < 3; page++) {
-            view.setPage(page);
+            view.setPageImmediate(page);
             BufferedImage img = new BufferedImage(viewW, viewH, BufferedImage.TYPE_INT_RGB);
             Graphics2D g = img.createGraphics();
             hint(g);

@@ -63,11 +63,19 @@ public final class Theme {
     public static final int ACCENT = 0xFF8E86FF;
     public static final int TAB_ACTIVE = 0xFF303750;
     public static final int RED = 0xFF9E1219;
+    /** Красная зона шкалы: на эталоне она светлее и менее густая, чем алерт. */
+    public static final int RED_ZONE = 0xFFBA3E31;
     public static final int WARN = 0xFFE8A33A;
 
-    public final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
-    public final Paint stroke = new Paint(Paint.ANTI_ALIAS_FLAG);
-    public final Paint text = new Paint(Paint.ANTI_ALIAS_FLAG);
+    public final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.DITHER_FLAG);
+    public final Paint stroke = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.DITHER_FLAG);
+    /*
+     * SUBPIXEL_TEXT даёт более точное позиционирование глифов, LINEAR_TEXT
+     * убирает ступеньку при дробных кеглях — а они здесь дробные, потому что
+     * все размеры домножаются на масштаб окна.
+     */
+    public final Paint text = new Paint(Paint.ANTI_ALIAS_FLAG
+            | Paint.SUBPIXEL_TEXT_FLAG | Paint.LINEAR_TEXT_FLAG);
 
     public final RectF rect = new RectF();
     public final RectF rect2 = new RectF();
@@ -117,6 +125,7 @@ public final class Theme {
 
     public Paint text(int color, float size, Paint.Align align, boolean boldFace) {
         text.setShader(null);
+        text.setStyle(Paint.Style.FILL);
         text.setColor(color);
         text.setTextSize(size);
         text.setTextScaleX(CONDENSE);
@@ -182,6 +191,23 @@ public final class Theme {
         fill.setShader(sh);
         fill.setColor(0xFFFFFFFF);
         return fill;
+    }
+
+    /**
+     * Тёмная обводка под текстом. Нужна там, где под подписью может оказаться
+     * стрелка: белое по белому нечитаемо, а сдвигать подпись нельзя — её
+     * положение снято с эталона.
+     */
+    public Paint textOutline(float size, float width, Paint.Align align, boolean boldFace) {
+        text.setShader(null);
+        text.setColor(0xC8000000);
+        text.setStyle(Paint.Style.STROKE);
+        text.setStrokeWidth(width);
+        text.setTextSize(size);
+        text.setTextScaleX(CONDENSE);
+        text.setTextAlign(align);
+        text.setTypeface(boldFace ? bold : regular);
+        return text;
     }
 
     /** Трёхточечный вертикальный градиент: заливка карточки. */

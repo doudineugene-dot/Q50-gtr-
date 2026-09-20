@@ -47,6 +47,12 @@ public final class DashboardView extends View implements Runnable {
     private long clockPressAtMs;
 
     private int page;
+    /* Переключение вкладки едет, а не прыгает: от -1..1, гасится к нулю. */
+    private int slideFrom = -1;
+    private float slideAt;
+    private long slideStartMs;
+    private static final long SLIDE_MS = 260L;
+
     private float dragX;
     private boolean dragging;
     private float downX;
@@ -138,6 +144,19 @@ public final class DashboardView extends View implements Runnable {
             if (neighbour >= 0 && neighbour < pages.length) {
                 drawPage(canvas, d, l, neighbour, dragX + (dragX < 0f ? l.w : -l.w));
             }
+        } else if (slideFrom >= 0) {
+            // Анимация перелистывания: уходящая вкладка и приходящая едут
+            // вместе, скорость гасится к концу.
+            float k = (System.currentTimeMillis() - slideStartMs) / (float) SLIDE_MS;
+            if (k >= 1f) {
+                slideFrom = -1;
+                drawPage(canvas, d, l, page, 0f);
+            } else {
+                float e = ease(k);
+                float dir = slideAt < 0f ? -1f : 1f;
+                drawPage(canvas, d, l, slideFrom, dir * e * l.w);
+                drawPage(canvas, d, l, page, dir * e * l.w - dir * l.w);
+            }
         } else {
             drawPage(canvas, d, l, page, 0f);
         }
@@ -148,6 +167,12 @@ public final class DashboardView extends View implements Runnable {
         if (diag) {
             DiagOverlay.draw(canvas, t, l, hub, probe, display, System.currentTimeMillis());
         }
+    }
+
+    /** Плавное замедление к концу: cubic ease-out. */
+    private static float ease(float k) {
+        float inv = 1f - k;
+        return 1f - inv * inv * inv;
     }
 
     private void drawPage(Canvas canvas, VehicleData d, Layout l, int index, float offsetX) {
@@ -220,13 +245,15 @@ public final class DashboardView extends View implements Runnable {
                 }
                 clockPressAtMs = 0L;
                 if (dragging) {
+                    int want = page;
                     if (dragX <= -SWIPE_COMMIT && page < pages.length - 1) {
-                        page++;
+                        want = page + 1;
                     } else if (dragX >= SWIPE_COMMIT && page > 0) {
-                        page--;
+                        want = page - 1;
                     }
                     dragging = false;
                     dragX = 0f;
+                    setPage(want);
                     invalidate();
                     return true;
                 }
@@ -277,8 +304,19 @@ public final class DashboardView extends View implements Runnable {
 
     public void setPage(int index) {
         if (index >= 0 && index < pages.length && index != page) {
+            slideFrom = page;
+            slideAt = index > page ? -1f : 1f;
+            slideStartMs = System.currentTimeMillis();
             page = index;
             invalidate();
+        }
+    }
+
+    /** Офлайн-рендеру анимация не нужна: кадр должен быть повторяемым. */
+    public void setPageImmediate(int index) {
+        if (index >= 0 && index < pages.length) {
+            slideFrom = -1;
+            page = index;
         }
     }
 }
