@@ -112,9 +112,24 @@ fi
 rm -rf "$BUILD_DIR/classes" "$BUILD_DIR/gen" "$UNSIGNED" "$ALIGNED" "$OUTPUT"
 mkdir -p "$BUILD_DIR/classes" "$BUILD_DIR/gen"
 
-say "1/5 aapt: ресурсы и манифест"
+# versionCode штампуется монотонно (unix-время).
+#
+# AppManager на ГУ скрывает кандидата, у которого versionCode <= уже
+# установленного, и тогда экран «Install Apps via USB» пишет «No app file
+# found» — файл на флешке есть, но показывать его он отказывается. Это
+# поведение восстановлено из декомпилированного framework.jar в проекте
+# qazwsd147/appgarage-dash. Имя файла на это не влияет никак.
+#
+# versionName в манифесте остаётся человеческим («0.7-live-test»), а
+# versionCode подменяется только в копии манифеста для aapt.
+VERSION_CODE=$(date -u +%s)
+sed "s/android:versionCode=\"[0-9]*\"/android:versionCode=\"$VERSION_CODE\"/" \
+    AndroidManifest.xml > "$BUILD_DIR/AndroidManifest.xml"
+echo "$VERSION_CODE" > "$BUILD_DIR/version-code.txt"
+
+say "1/5 aapt: ресурсы и манифест (versionCode=$VERSION_CODE)"
 aapt package -f \
-    -M AndroidManifest.xml \
+    -M "$BUILD_DIR/AndroidManifest.xml" \
     -S res \
     -I "$ANDROID_JAR" \
     -J "$BUILD_DIR/gen" \

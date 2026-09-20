@@ -45,6 +45,7 @@ Q50 GTR+ build provenance
 
 repository                  ${GITHUB_REPOSITORY:-doudineugene-dot/Q50-gtr-}
 version                     $VERSION
+versionCode                 $(cat build/version-code.txt 2>/dev/null || echo "?")
 commit SHA                  ${GITHUB_SHA:-(local build)}
 tag SHA                     ${PROV_TAG_SHA:-(not a tagged build)}
 workflow run ID             ${GITHUB_RUN_ID:-(local build)}
