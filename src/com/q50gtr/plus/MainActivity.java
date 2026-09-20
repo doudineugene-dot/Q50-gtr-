@@ -93,11 +93,23 @@ public final class MainActivity extends Activity {
         super.onPause();
     }
 
+    /**
+     * Версия берётся из установленного пакета, а не из строки в коде: строка
+     * в коде уже успела разойтись с манифестом, и отчёт врал о версии.
+     */
+    private String versionName() {
+        try {
+            return getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+        } catch (Throwable t) {
+            return "?";
+        }
+    }
+
     /** Полный диагностический отчёт: геометрия, зонд, состояние каналов. */
     private String buildReport() {
         StringBuilder b = new StringBuilder();
         b.append("Q50 GTR+ DIAGNOSTIC REPORT\n");
-        b.append("version 0.7-live-test\n\n");
+        b.append("version ").append(versionName()).append("\n\n");
         dashboard.getDisplayInfo().appendTo(b);
         b.append('\n');
         b.append("DATA SOURCE      = ").append(hub.getSourceLabel()).append('\n');
