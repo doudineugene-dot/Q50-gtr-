@@ -22,8 +22,8 @@ public final class DashboardView extends View implements Runnable {
     public static final float DESIGN_W = 840f;
     public static final float DESIGN_H = 480f;
 
-    private static final float TOP_H = 45f;
-    private static final float TABS_H = 60f;
+    private static final float TOP_H = Layout.TOP_H;
+    private static final float TABS_H = Layout.NAV_H;
     private static final float CONTENT_H = DESIGN_H - TOP_H - TABS_H;
 
     private static final long FRAME_MS = 100L;
@@ -45,7 +45,7 @@ public final class DashboardView extends View implements Runnable {
     public DashboardView(Context context, DataHub hub) {
         super(context);
         this.hub = hub;
-        setBackgroundColor(Theme.BG_BOTTOM);
+        setBackgroundColor(Theme.BG);
         touchSlop = ViewConfiguration.get(context).getScaledTouchSlop();
     }
 
@@ -90,7 +90,7 @@ public final class DashboardView extends View implements Runnable {
         canvas.scale(sx, sy);
 
         t.rect.set(0f, 0f, DESIGN_W, DESIGN_H);
-        canvas.drawRect(t.rect, t.background(DESIGN_H));
+        canvas.drawRect(t.rect, t.fill(Theme.BG));
 
         drawTopBar(canvas, d);
 
@@ -124,8 +124,9 @@ public final class DashboardView extends View implements Runnable {
     private void drawTopBar(Canvas c, VehicleData d) {
         Theme t = theme;
         t.rect.set(0f, 0f, DESIGN_W, TOP_H);
-        c.drawRect(t.rect, t.fill(Theme.BAR));
-        c.drawLine(0f, TOP_H - 0.5f, DESIGN_W, TOP_H - 0.5f, t.stroke(0xFF1A2534, 1f));
+        c.drawRect(t.rect, t.fill(Theme.BG));
+        // Тонкая светло-фиолетовая линия под полосой — как на эталоне.
+        c.drawLine(0f, TOP_H - 0.5f, DESIGN_W, TOP_H - 0.5f, t.stroke(Theme.HAIRLINE, 1f));
 
         // Стрелка «назад» — как в штатной оболочке.
         Path p = t.path;
@@ -147,26 +148,26 @@ public final class DashboardView extends View implements Runnable {
             sb.append('0');
         }
         sb.append(mm);
-        c.drawText(sb.toString(), DESIGN_W / 2f - 60f, TOP_H / 2f + 6f,
+        c.drawText(sb.toString(), 360f, TOP_H / 2f + 6f,
                 t.text(Theme.WHITE, 17f, Paint.Align.CENTER, false));
 
         String temp = d.ambientTemp.hasValue() ? d.ambientTemp.text(0) + " °C" : "-- °C";
-        c.drawText(temp, DESIGN_W / 2f + 62f, TOP_H / 2f + 6f,
+        c.drawText(temp, 462f, TOP_H / 2f + 6f,
                 t.text(Theme.WHITE, 17f, Paint.Align.CENTER, false));
 
         // Индикаторы справа: уровень сигнала и Bluetooth.
-        float bx = DESIGN_W - 74f;
+        float bx = 766f;
         for (int i = 0; i < 4; i++) {
             float bh = 4f + i * 3f;
             t.rect.set(bx + i * 5f, TOP_H / 2f + 6f - bh, bx + i * 5f + 3f, TOP_H / 2f + 6f);
             c.drawRect(t.rect, t.fill(Theme.LABEL));
         }
-        drawBluetooth(c, DESIGN_W - 34f, TOP_H / 2f, 8f);
+        drawBluetooth(c, 806f, TOP_H / 2f, 8f);
 
         if (hub.isDemoActive()) {
             // Единственная отметка демо-режима на всей панели: на самих
             // приборах её нет, там она только мешает читать показания.
-            c.drawText("DEMO", DESIGN_W / 2f + 152f, TOP_H / 2f + 5f,
+            c.drawText("DEMO", 566f, TOP_H / 2f + 5f,
                     t.text(Theme.ACCENT, 11f, Paint.Align.CENTER, true));
         }
     }
@@ -192,31 +193,33 @@ public final class DashboardView extends View implements Runnable {
         Theme t = theme;
         float top = DESIGN_H - TABS_H;
         t.rect.set(0f, top, DESIGN_W, DESIGN_H);
-        c.drawRect(t.rect, t.fill(Theme.BAR));
-        c.drawLine(0f, top + 0.5f, DESIGN_W, top + 0.5f, t.stroke(0xFF1A2534, 1f));
+        c.drawRect(t.rect, t.fill(Theme.NAV));
+        c.drawLine(0f, top + 0.5f, DESIGN_W, top + 0.5f, t.stroke(Theme.HAIRLINE, 1f));
 
         arrow(c, 26f, top + TABS_H / 2f, true);
-        arrow(c, DESIGN_W - 26f, top + TABS_H / 2f, false);
+        arrow(c, 814f, top + TABS_H / 2f, false);
 
         for (int i = 0; i < pages.length; i++) {
             float x = tabX(i);
             boolean active = i == page;
             if (active) {
-                // Скошенная подложка активной вкладки, как в InTouch.
-                Path p = t.path;
-                p.reset();
-                float slant = 12f;
-                p.moveTo(x + slant, top + 6f);
-                p.lineTo(x + TAB_W - slant, top + 6f);
-                p.lineTo(x + TAB_W, DESIGN_H);
-                p.lineTo(x, DESIGN_H);
-                p.close();
-                c.drawPath(p, t.fill(Theme.ACCENT_DEEP));
-                c.drawLine(x + slant, top + 6.5f, x + TAB_W - slant, top + 6.5f,
+                // Трапеция со скошенными боками — форма активной вкладки InTouch.
+                Path tp = t.path;
+                tp.reset();
+                float slant = 16f;
+                tp.moveTo(x + slant, top + 2f);
+                tp.lineTo(x + TAB_W - slant, top + 2f);
+                tp.lineTo(x + TAB_W, DESIGN_H);
+                tp.lineTo(x, DESIGN_H);
+                tp.close();
+                c.drawPath(tp, t.fill(Theme.TAB_ACTIVE));
+                c.drawLine(x + slant, top + 2.5f, x + TAB_W - slant, top + 2.5f,
                         t.stroke(Theme.ACCENT, 2f));
+            } else if (i > 0) {
+                c.drawLine(x, top + 12f, x, DESIGN_H - 12f, t.stroke(0xFF14181F, 1f));
             }
             c.drawText(pages[i].title(), x + TAB_W / 2f, top + TABS_H / 2f + 6f,
-                    t.text(active ? Theme.WHITE : Theme.LABEL, 15f, Paint.Align.CENTER, active));
+                    t.text(active ? Theme.WHITE : Theme.LABEL, 15f, Paint.Align.CENTER, false));
         }
     }
 
@@ -232,8 +235,8 @@ public final class DashboardView extends View implements Runnable {
     }
 
     /** Полоса вкладок занимает всю ширину между стрелками, как в InTouch. */
-    private static final float TAB_SIDE = 56f;
-    private static final float TAB_W = (DESIGN_W - TAB_SIDE * 2f) / 3f;
+    private static final float TAB_SIDE = 54f;
+    private static final float TAB_W = (786f - TAB_SIDE) / 3f;
 
     private static float tabX(int index) {
         return TAB_SIDE + index * TAB_W;

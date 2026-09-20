@@ -4,7 +4,7 @@ import android.graphics.Canvas;
 
 import com.q50gtr.plus.data.VehicleData;
 
-/** Вкладка 1: обороты и наддув на циферблатах, температуры и давление — плитками. */
+/** Экран 1 по docs/UI-MASTER-SPEC.md: RPM и BOOST, под ними четыре карточки. */
 public final class EnginePage implements Page {
 
     public String title() {
@@ -12,27 +12,21 @@ public final class EnginePage implements Page {
     }
 
     public void draw(Canvas c, Theme t, VehicleData d, float w, float h) {
-        float r = 118f;
-        float cy = 125f;
-        Gauges.dial(c, t, w / 2f - 165f, cy, r, d.rpm,
-                0f, 8000f, 0, 8, 6800f, "RPM", "x1000", 1000f, 0, false);
-        Gauges.dial(c, t, w / 2f + 165f, cy, r, d.boostActual,
-                -1f, 2f, 2, 6, 1.8f, "BOOST", "bar", 1f, 1, false);
+        float cy = Layout.DIAL_CY;
+        float r = Layout.DIAL_R;
 
-        float tw = (w - 28f - 30f) / 4f;
-        float ty = h - 108f;
-        float th = 85f;
-        Gauges.tile(c, t, col(0, tw), ty, tw, th, Icons.COOLANT, "ОХЛ. ЖИДКОСТЬ",
-                d.coolantTemp, 0, "°C", 105f, 112f);
-        Gauges.tile(c, t, col(1, tw), ty, tw, th, Icons.OIL_TEMP, "ТЕМП. МАСЛА",
-                d.oilTemp, 0, "°C", 125f, 138f);
-        Gauges.tile(c, t, col(2, tw), ty, tw, th, Icons.OIL_PRESS, "ДАВЛ. МАСЛА",
-                d.oilPressure, 1, "bar", Float.NaN, Float.NaN);
-        Gauges.tile(c, t, col(3, tw), ty, tw, th, Icons.INTAKE, "ТЕМП. ВПУСКА",
-                d.intakeTemp, 0, "°C", 55f, 70f);
-    }
+        OemDial.draw(c, t, Layout.DIAL_LEFT_CX, cy, r, d.rpm,
+                0f, 8000f, 0, 8, 6300f, "RPM", "x1000", 1000f, 0, false, null);
+        // Селектор передач отдельным каналом не приходит, поэтому индикатор
+        // под осью показывает прочерк, а не выдуманную передачу.
+        OemDial.gearBadge(c, t, Layout.DIAL_LEFT_CX, cy, r, "—");
 
-    static float col(int i, float tw) {
-        return 14f + i * (tw + 10f);
+        OemDial.draw(c, t, Layout.DIAL_RIGHT_CX, cy, r, d.boostActual,
+                -1f, 2f, 2, 6, 1.8f, "BOOST", "bar", 1f, 1, true, null);
+
+        Layout.tile(c, t, 0, Icons.COOLANT, "ОХЛ. ЖИДКОСТЬ", d.coolantTemp, 0, "°C", 105f, 112f);
+        Layout.tile(c, t, 1, Icons.OIL_TEMP, "ТЕМП. МАСЛА", d.oilTemp, 0, "°C", 125f, 138f);
+        Layout.tile(c, t, 2, Icons.OIL_PRESS, "ДАВЛ. МАСЛА", d.oilPressure, 1, "bar", Float.NaN, Float.NaN);
+        Layout.tile(c, t, 3, Icons.INTAKE, "ТЕМП. ВПУСКА", d.intakeTemp, 0, "°C", 55f, 70f);
     }
 }

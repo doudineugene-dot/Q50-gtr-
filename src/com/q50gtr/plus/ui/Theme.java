@@ -9,41 +9,35 @@ import android.graphics.Shader;
 import android.graphics.Typeface;
 
 /**
- * Палитра и кисти приборной панели: тёмно-синий фон, металлические ободы
- * приборов, белые шкалы, синий акцент штатного InTouch.
- *
- * Всё выделяется один раз. onDraw идёт десять раз в секунду на железе
- * 2011 года, поэтому в нём не должно быть ни одного new.
+ * Палитра снята пипеткой с master reference, см. docs/UI-MASTER-SPEC.md.
+ * Всё выделяется один раз: onDraw идёт 10 раз в секунду на железе 2011 года.
  */
 public final class Theme {
 
-    /* фон и панели */
-    public static final int BG_TOP = 0xFF0A1018;
-    public static final int BG_BOTTOM = 0xFF04070C;
-    public static final int BAR = 0xFF080D14;
-    public static final int TILE_TOP = 0xFF121A26;
-    public static final int TILE_BOTTOM = 0xFF0A0F17;
-    public static final int TILE_EDGE = 0xFF1E2A3A;
+    public static final int BG = 0xFF020408;
+    public static final int NAV = 0xFF000005;
+    public static final int HAIRLINE = 0xFF2A2740;
 
-    /* циферблат */
-    public static final int DIAL_IN = 0xFF16233A;
-    public static final int DIAL_OUT = 0xFF05080E;
-    public static final int BEZEL_HI = 0xFFB9C2CE;
-    public static final int BEZEL_MID = 0xFF3C444F;
-    public static final int BEZEL_LO = 0xFF6E7784;
+    public static final int TILE = 0xFF070C12;
+    public static final int TILE_EDGE = 0xFF1B2430;
 
-    /* текст и шкалы */
+    public static final int DIAL_IN = 0xFF101C33;
+    public static final int DIAL_OUT = 0xFF000006;
+    public static final int RING_DARK = 0xFF05070C;
+
+    public static final int BEZEL_HI = 0xFF9BA5B3;
+    public static final int BEZEL_MID = 0xFF232932;
+    public static final int BEZEL_LO = 0xFF5B6470;
+
     public static final int WHITE = 0xFFF2F5FA;
-    public static final int TICK = 0xFFDFE4EE;
-    public static final int TICK_MINOR = 0xFFB9B4E8;
+    public static final int TICK = 0xFFF3EDF6;
+    public static final int TICK_MINOR = 0xFF8E8AA8;
     public static final int LABEL = 0xFF8A94A4;
-    public static final int VALUE_DIM = 0xFF5D6675;
+    public static final int VALUE_DIM = 0xFF4A5462;
 
-    /* акценты */
-    public static final int ACCENT = 0xFF2E7BD6;
-    public static final int ACCENT_DEEP = 0xFF16406F;
-    public static final int VIOLET = 0xFF9AA2E8;
-    public static final int RED = 0xFFD43A32;
+    public static final int ACCENT = 0xFF8E86FF;
+    public static final int TAB_ACTIVE = 0xFF303750;
+    public static final int RED = 0xFF9E1219;
     public static final int WARN = 0xFFE8A33A;
 
     public final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -57,12 +51,6 @@ public final class Theme {
     public final Typeface regular;
     public final Typeface bold;
 
-    private Shader bgShader;
-    private Shader tileShader;
-    private float tileShaderH = -1f;
-
-    /* Шейдеры циферблата зависят только от радиуса: приборы рисуются в
-     * локальных координатах, так что одного комплекта хватает на все. */
     private Shader bezelShader;
     private Shader dialShader;
     private float shaderRadius = -1f;
@@ -102,41 +90,19 @@ public final class Theme {
         return text;
     }
 
-    /** Вертикальный градиент фона панели. */
-    public Paint background(float h) {
-        if (bgShader == null) {
-            bgShader = new LinearGradient(0f, 0f, 0f, h, BG_TOP, BG_BOTTOM, Shader.TileMode.CLAMP);
-        }
-        fill.setShader(bgShader);
-        fill.setColor(0xFFFFFFFF);
-        return fill;
-    }
-
-    /** Градиент плитки. Высота плиток в макете повторяется, поэтому хватает одного. */
-    public Paint tile(float h) {
-        if (tileShader == null || tileShaderH != h) {
-            tileShader = new LinearGradient(0f, 0f, 0f, h, TILE_TOP, TILE_BOTTOM, Shader.TileMode.CLAMP);
-            tileShaderH = h;
-        }
-        fill.setShader(tileShader);
-        fill.setColor(0xFFFFFFFF);
-        return fill;
-    }
-
     private void ensureDialShaders(float r) {
         if (shaderRadius == r) {
             return;
         }
-        // Обод: диагональный «металл» — светлый верх, тёмная середина, блик снизу.
-        bezelShader = new LinearGradient(-r, -r, r, r,
-                new int[]{BEZEL_HI, BEZEL_MID, BEZEL_LO, BEZEL_MID, BEZEL_HI},
-                new float[]{0f, 0.3f, 0.5f, 0.7f, 1f}, Shader.TileMode.CLAMP);
-        dialShader = new RadialGradient(0f, -r * 0.15f, r,
+        bezelShader = new LinearGradient(-r, -r, r * 0.6f, r,
+                new int[]{BEZEL_HI, BEZEL_LO, BEZEL_MID, BEZEL_LO, BEZEL_HI},
+                new float[]{0f, 0.22f, 0.52f, 0.78f, 1f}, Shader.TileMode.CLAMP);
+        // Циферблат почти чёрный, с лёгким синим подсветом у центра.
+        dialShader = new RadialGradient(0f, -r * 0.10f, r * 0.95f,
                 DIAL_IN, DIAL_OUT, Shader.TileMode.CLAMP);
         shaderRadius = r;
     }
 
-    /** Кисть обода. Прибор должен быть уже центрирован в (0,0). */
     public Paint bezel(float r) {
         ensureDialShaders(r);
         fill.setShader(bezelShader);
@@ -144,7 +110,6 @@ public final class Theme {
         return fill;
     }
 
-    /** Кисть циферблата. Прибор должен быть уже центрирован в (0,0). */
     public Paint dial(float r) {
         ensureDialShaders(r);
         fill.setShader(dialShader);

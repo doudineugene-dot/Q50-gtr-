@@ -6,65 +6,53 @@ import android.graphics.Paint;
 import com.q50gtr.plus.data.Channel;
 import com.q50gtr.plus.data.VehicleData;
 
-/**
- * Вкладка 3: пневмоподвеска вокруг машины, температуры трансмиссии и бортовая
- * сеть — колонкой справа, контроль зажигания и движения — строкой снизу.
- */
+/** Экран 3 по docs/UI-MASTER-SPEC.md: пневмоподвеска, колонка справа, ряд снизу. */
 public final class ChassisPage implements Page {
+
+    private static final float CAR_X = 180f;
+    private static final float CAR_W = 230f;
+    private static final float CAR_H = 162f;
 
     public String title() {
         return "ШАССИ";
     }
 
     public void draw(Canvas c, Theme t, VehicleData d, float w, float h) {
-        float colW = 238f;
-        float colX = w - 14f - colW;
+        float carY = 50f;
 
-        c.drawText("ДАВЛЕНИЕ ПНЕВМОПОДВЕСКИ (bar)", (colX - 14f) / 2f + 14f, 26f,
-                t.text(Theme.LABEL, 12.5f, Paint.Align.CENTER, false));
+        // Заголовок идёт первой строкой контента, под верхней полосой.
+        c.drawText("ДАВЛЕНИЕ ПНЕВМОПОДВЕСКИ (bar)", CAR_X + CAR_W / 2f, 30f,
+                t.text(Theme.LABEL, 13f, Paint.Align.CENTER, false));
 
-        float carW = 168f;
-        float carH = 140f;
-        float carX = (colX - 14f) / 2f + 14f - carW / 2f;
-        float carY = 44f;
-        Q50Rear.car(c, t, carX, carY, carW, carH);
+        Q50Rear.car(c, t, CAR_X, carY, CAR_W, CAR_H);
 
-        // Стойки по углам машины: передние выше, задние ниже.
-        float strutH = 62f;
-        float leftX = carX - 52f;
-        float rightX = carX + carW + 52f;
-        float topY = carY + 20f;
-        float bottomY = carY + carH - 4f;
-        Q50Rear.strut(c, t, leftX, topY, strutH, d.airFrontLeft, true);
-        Q50Rear.strut(c, t, rightX, topY, strutH, d.airFrontRight, false);
-        Q50Rear.strut(c, t, leftX, bottomY, strutH, d.airRearLeft, true);
-        Q50Rear.strut(c, t, rightX, bottomY, strutH, d.airRearRight, false);
+        float strutH = 66f;
+        float topCy = carY + 34f;
+        float botCy = carY + 128f;
+        Q50Rear.strut(c, t, 112f, topCy, strutH, d.airFrontLeft, true);
+        Q50Rear.strut(c, t, 478f, topCy, strutH, d.airFrontRight, false);
+        Q50Rear.strut(c, t, 112f, botCy, strutH, d.airRearLeft, true);
+        Q50Rear.strut(c, t, 478f, botCy, strutH, d.airRearRight, false);
 
-        // Колонка справа.
+        float colX = 598f;
+        float colW = 228f;
         float rh = 56f;
         float gap = 8f;
-        float ry = 12f;
+        float ry = 14f;
         Gauges.tileRow(c, t, colX, ry, colW, rh, Icons.GEARBOX, "ТЕМП. АКПП",
                 d.transmissionTemp, 0, "°C", 110f, 125f);
         Gauges.tileRow(c, t, colX, ry + (rh + gap), colW, rh, Icons.GEARBOX, "ТЕМП. РАЗДАТКИ",
                 d.transferCaseTemp, 0, "°C", 110f, 125f);
-        Gauges.tileRow(c, t, colX, ry + 2 * (rh + gap), colW, rh, Icons.BATTERY, "НАПРЯЖЕНИЕ",
+        Gauges.tileRow(c, t, colX, ry + 2f * (rh + gap), colW, rh, Icons.BATTERY, "НАПРЯЖЕНИЕ",
                 d.batteryVoltage, 1, "V", Float.NaN, Float.NaN);
-        Gauges.tileRow(c, t, colX, ry + 3 * (rh + gap), colW, rh, Icons.AMBIENT, "ТЕМП. ОКР. ВОЗДУХА",
+        Gauges.tileRow(c, t, colX, ry + 3f * (rh + gap), colW, rh, Icons.AMBIENT, "ТЕМП. ОКР. ВОЗДУХА",
                 d.ambientTemp, 0, "°C", Float.NaN, Float.NaN);
 
-        // Нижняя строка на всю ширину.
-        float tw = (w - 28f - 30f) / 4f;
-        float ty = h - 108f;
-        float th = 85f;
         Channel knock = d.maxKnockIndexChannel();
-        Gauges.tile(c, t, EnginePage.col(0, tw), ty, tw, th, Icons.SPARK, "УГОЛ ЗАЖИГАНИЯ",
-                d.ignitionTiming, 0, "°", Float.NaN, Float.NaN);
-        Gauges.tile(c, t, EnginePage.col(1, tw), ty, tw, th, Icons.KNOCK, "KNOCK INDEX (MAX)",
+        Layout.tile(c, t, 0, Icons.SPARK, "УГОЛ ЗАЖИГАНИЯ", d.ignitionTiming, 0, "°", Float.NaN, Float.NaN);
+        Layout.tile(c, t, 1, Icons.KNOCK, "KNOCK INDEX (MAX)",
                 knock != null ? knock : d.knockRetard, 1, "", 4f, 6f);
-        Gauges.tile(c, t, EnginePage.col(2, tw), ty, tw, th, Icons.THROTTLE, "ДРОССЕЛЬ",
-                d.throttle, 0, "%", Float.NaN, Float.NaN);
-        Gauges.tile(c, t, EnginePage.col(3, tw), ty, tw, th, Icons.SPEED, "СКОРОСТЬ",
-                d.speed, 0, "км/ч", Float.NaN, Float.NaN);
+        Layout.tile(c, t, 2, Icons.THROTTLE, "ДРОССЕЛЬ", d.throttle, 0, "%", Float.NaN, Float.NaN);
+        Layout.tile(c, t, 3, Icons.SPEED, "СКОРОСТЬ", d.speed, 0, "км/ч", Float.NaN, Float.NaN);
     }
 }
