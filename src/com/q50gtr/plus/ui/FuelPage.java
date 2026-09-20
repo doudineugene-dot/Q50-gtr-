@@ -19,21 +19,21 @@ public final class FuelPage implements Page {
     }
 
     public void draw(Canvas c, Theme t, VehicleData d, float w, float h) {
-        float r = 128f;
-        float cy = 150f;
-        Gauges.dial(c, t, w / 2f - 168f, cy, r, d.lpfp,
-                0f, 10f, 1, 5, Float.NaN, "LPFP", "bar", 1f, 0);
-        Gauges.dial(c, t, w / 2f + 168f, cy, r, d.hpfpActual,
-                0f, 250f, 0, 5, Float.NaN, "HPFP", "bar", 1f, 0);
+        float r = 118f;
+        float cy = 125f;
+        Gauges.dial(c, t, w / 2f - 165f, cy, r, d.lpfp,
+                0f, 10f, 1, 5, Float.NaN, "LPFP", "bar", 1f, 0, true);
+        Gauges.dial(c, t, w / 2f + 165f, cy, r, d.hpfpActual,
+                0f, 250f, 0, 5, Float.NaN, "HPFP", "bar", 1f, 0, true);
 
         if (!d.lpfp.hasValue()) {
-            c.drawText("не логируется", w / 2f - 168f, cy + r * 0.72f,
-                    t.text(Theme.VALUE_DIM, 12f, Paint.Align.CENTER, false));
+            c.drawText("не логируется", w / 2f - 165f, cy + r * 0.68f,
+                    t.text(Theme.VALUE_DIM, 11.5f, Paint.Align.CENTER, false));
         }
 
         float tw = (w - 28f - 30f) / 4f;
-        float ty = h - 92f;
-        float th = 78f;
+        float ty = h - 108f;
+        float th = 85f;
         Gauges.tile(c, t, EnginePage.col(0, tw), ty, tw, th, Icons.FUEL, "КОРРЕКЦИЯ ТОПЛИВА",
                 d.stftB1, 1, "%", Float.NaN, Float.NaN);
         Gauges.tile(c, t, EnginePage.col(1, tw), ty, tw, th, Icons.LAMBDA, "СМЕСЬ (AFR)",

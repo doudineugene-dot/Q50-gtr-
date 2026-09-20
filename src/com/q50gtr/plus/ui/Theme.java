@@ -35,7 +35,7 @@ public final class Theme {
     /* текст и шкалы */
     public static final int WHITE = 0xFFF2F5FA;
     public static final int TICK = 0xFFDFE4EE;
-    public static final int TICK_MINOR = 0xFF6B7687;
+    public static final int TICK_MINOR = 0xFFB9B4E8;
     public static final int LABEL = 0xFF8A94A4;
     public static final int VALUE_DIM = 0xFF5D6675;
 

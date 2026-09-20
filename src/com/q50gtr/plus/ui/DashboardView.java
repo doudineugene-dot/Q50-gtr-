@@ -22,8 +22,8 @@ public final class DashboardView extends View implements Runnable {
     public static final float DESIGN_W = 840f;
     public static final float DESIGN_H = 480f;
 
-    private static final float TOP_H = 42f;
-    private static final float TABS_H = 46f;
+    private static final float TOP_H = 45f;
+    private static final float TABS_H = 60f;
     private static final float CONTENT_H = DESIGN_H - TOP_H - TABS_H;
 
     private static final long FRAME_MS = 100L;
@@ -164,7 +164,9 @@ public final class DashboardView extends View implements Runnable {
         drawBluetooth(c, DESIGN_W - 34f, TOP_H / 2f, 8f);
 
         if (hub.isDemoActive()) {
-            c.drawText("DEMO", DESIGN_W / 2f + 148f, TOP_H / 2f + 5f,
+            // Единственная отметка демо-режима на всей панели: на самих
+            // приборах её нет, там она только мешает читать показания.
+            c.drawText("DEMO", DESIGN_W / 2f + 152f, TOP_H / 2f + 5f,
                     t.text(Theme.ACCENT, 11f, Paint.Align.CENTER, true));
         }
     }
@@ -229,12 +231,12 @@ public final class DashboardView extends View implements Runnable {
         c.drawPath(p, t.stroke(Theme.LABEL, 2f));
     }
 
-    private static final float TAB_W = 196f;
-    private static final float TAB_GAP = 8f;
+    /** Полоса вкладок занимает всю ширину между стрелками, как в InTouch. */
+    private static final float TAB_SIDE = 56f;
+    private static final float TAB_W = (DESIGN_W - TAB_SIDE * 2f) / 3f;
 
     private static float tabX(int index) {
-        float total = TAB_W * 3f + TAB_GAP * 2f;
-        return (DESIGN_W - total) / 2f + index * (TAB_W + TAB_GAP);
+        return TAB_SIDE + index * TAB_W;
     }
 
     /* ------------------------------------------------------------------ */

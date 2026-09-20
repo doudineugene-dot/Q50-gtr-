@@ -21,8 +21,8 @@ public final class VehicleData {
     public final Channel intakeTemp = new Channel("intake_temp", "ВПУСК T", "°C");
 
     /* --- fuel --------------------------------------------------------- */
-    public final Channel hpfpActual = new Channel("hpfp_actual", "HPFP ACT", "MPa");
-    public final Channel hpfpTarget = new Channel("hpfp_target", "HPFP TGT", "MPa");
+    public final Channel hpfpActual = new Channel("hpfp_actual", "HPFP ACT", "bar");
+    public final Channel hpfpTarget = new Channel("hpfp_target", "HPFP TGT", "bar");
     public final Channel afrB1 = new Channel("afr_b1", "AFR B1", "");
     public final Channel afrB2 = new Channel("afr_b2", "AFR B2", "");
     public final Channel stftB1 = new Channel("stft_b1", "STFT B1", "%");
@@ -35,7 +35,7 @@ public final class VehicleData {
      * so it is permanently UNAVAILABLE and the fuel page renders it as such.
      * It exists as a field only so a future configuration can fill it in.
      */
-    public final Channel lpfp = new Channel("lpfp", "LPFP", "kPa");
+    public final Channel lpfp = new Channel("lpfp", "LPFP", "bar");
 
     /* --- ignition / knock --------------------------------------------- */
     public final Channel ignitionTiming = new Channel("ign_timing", "IGN TIMING", "°");
@@ -61,11 +61,11 @@ public final class VehicleData {
     public final Channel ambientTemp = new Channel("ambient_temp", "СНАРУЖИ", "°C");
 
     /* --- AirLift Performance 3H (suspension) --------------------------- */
-    public final Channel airFrontLeft = new Channel("air_fl", "FL", "psi");
-    public final Channel airFrontRight = new Channel("air_fr", "FR", "psi");
-    public final Channel airRearLeft = new Channel("air_rl", "RL", "psi");
-    public final Channel airRearRight = new Channel("air_rr", "RR", "psi");
-    public final Channel airTank = new Channel("air_tank", "РЕСИВЕР", "psi");
+    public final Channel airFrontLeft = new Channel("air_fl", "FL", "bar");
+    public final Channel airFrontRight = new Channel("air_fr", "FR", "bar");
+    public final Channel airRearLeft = new Channel("air_rl", "RL", "bar");
+    public final Channel airRearRight = new Channel("air_rr", "RR", "bar");
+    public final Channel airTank = new Channel("air_tank", "РЕСИВЕР", "bar");
 
     public VehicleData() {
         for (int i = 0; i < knockIndex.length; i++) {

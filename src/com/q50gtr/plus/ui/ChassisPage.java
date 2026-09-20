@@ -24,9 +24,9 @@ public final class ChassisPage implements Page {
                 t.text(Theme.LABEL, 12.5f, Paint.Align.CENTER, false));
 
         float carW = 168f;
-        float carH = 132f;
+        float carH = 140f;
         float carX = (colX - 14f) / 2f + 14f - carW / 2f;
-        float carY = 48f;
+        float carY = 44f;
         Q50Rear.car(c, t, carX, carY, carW, carH);
 
         // Стойки по углам машины: передние выше, задние ниже.
@@ -41,9 +41,9 @@ public final class ChassisPage implements Page {
         Q50Rear.strut(c, t, rightX, bottomY, strutH, d.airRearRight, false);
 
         // Колонка справа.
-        float rh = 58f;
+        float rh = 56f;
         float gap = 8f;
-        float ry = 22f;
+        float ry = 12f;
         Gauges.tileRow(c, t, colX, ry, colW, rh, Icons.GEARBOX, "ТЕМП. АКПП",
                 d.transmissionTemp, 0, "°C", 110f, 125f);
         Gauges.tileRow(c, t, colX, ry + (rh + gap), colW, rh, Icons.GEARBOX, "ТЕМП. РАЗДАТКИ",
@@ -55,13 +55,13 @@ public final class ChassisPage implements Page {
 
         // Нижняя строка на всю ширину.
         float tw = (w - 28f - 30f) / 4f;
-        float ty = h - 92f;
-        float th = 78f;
+        float ty = h - 108f;
+        float th = 85f;
         Channel knock = d.maxKnockIndexChannel();
         Gauges.tile(c, t, EnginePage.col(0, tw), ty, tw, th, Icons.SPARK, "УГОЛ ЗАЖИГАНИЯ",
                 d.ignitionTiming, 0, "°", Float.NaN, Float.NaN);
         Gauges.tile(c, t, EnginePage.col(1, tw), ty, tw, th, Icons.KNOCK, "KNOCK INDEX (MAX)",
-                knock != null ? knock : d.knockRetard, 1, "", 25f, 40f);
+                knock != null ? knock : d.knockRetard, 1, "", 4f, 6f);
         Gauges.tile(c, t, EnginePage.col(2, tw), ty, tw, th, Icons.THROTTLE, "ДРОССЕЛЬ",
                 d.throttle, 0, "%", Float.NaN, Float.NaN);
         Gauges.tile(c, t, EnginePage.col(3, tw), ty, tw, th, Icons.SPEED, "СКОРОСТЬ",

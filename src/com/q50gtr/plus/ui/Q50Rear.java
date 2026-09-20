@@ -20,54 +20,63 @@ public final class Q50Rear {
         float cx = x + w / 2f;
         Path p = t.path;
 
-        // Крыша и стекло.
+        // Крыша: узкая сверху, расширяется к плечам — силуэт седана сзади.
+        float roofTop = y + h * 0.06f;
+        float glassBottom = y + h * 0.40f;
         p.reset();
-        float roofW = w * 0.52f;
-        float glassW = w * 0.60f;
-        p.moveTo(cx - roofW / 2f, y + h * 0.10f);
-        p.quadTo(cx, y + h * 0.02f, cx + roofW / 2f, y + h * 0.10f);
-        p.lineTo(cx + glassW / 2f, y + h * 0.40f);
-        p.lineTo(cx - glassW / 2f, y + h * 0.40f);
+        p.moveTo(cx - w * 0.21f, roofTop);
+        p.quadTo(cx, roofTop - h * 0.03f, cx + w * 0.21f, roofTop);
+        p.quadTo(cx + w * 0.30f, y + h * 0.22f, cx + w * 0.33f, glassBottom);
+        p.lineTo(cx - w * 0.33f, glassBottom);
+        p.quadTo(cx - w * 0.30f, y + h * 0.22f, cx - w * 0.21f, roofTop);
         p.close();
-        c.drawPath(p, t.fill(0xFF0E1826));
-        c.drawPath(p, t.stroke(0xFF39485C, 1.4f));
+        c.drawPath(p, t.fill(0xFF1A2432));
+        c.drawPath(p, t.stroke(0xFF4C5C72, 1.3f));
 
-        // Кузов.
+        // Заднее стекло.
         p.reset();
-        float bodyW = w * 0.86f;
-        p.moveTo(cx - glassW / 2f - w * 0.02f, y + h * 0.40f);
-        p.lineTo(cx + glassW / 2f + w * 0.02f, y + h * 0.40f);
-        p.quadTo(cx + bodyW / 2f, y + h * 0.46f, cx + bodyW / 2f, y + h * 0.62f);
-        p.lineTo(cx + bodyW / 2f, y + h * 0.84f);
-        p.quadTo(cx + bodyW / 2f, y + h * 0.92f, cx + bodyW / 2f - w * 0.06f, y + h * 0.92f);
-        p.lineTo(cx - bodyW / 2f + w * 0.06f, y + h * 0.92f);
-        p.quadTo(cx - bodyW / 2f, y + h * 0.92f, cx - bodyW / 2f, y + h * 0.84f);
-        p.lineTo(cx - bodyW / 2f, y + h * 0.62f);
-        p.quadTo(cx - bodyW / 2f, y + h * 0.46f, cx - glassW / 2f - w * 0.02f, y + h * 0.40f);
+        p.moveTo(cx - w * 0.18f, roofTop + h * 0.04f);
+        p.lineTo(cx + w * 0.18f, roofTop + h * 0.04f);
+        p.lineTo(cx + w * 0.27f, glassBottom - h * 0.03f);
+        p.lineTo(cx - w * 0.27f, glassBottom - h * 0.03f);
         p.close();
-        c.drawPath(p, t.fill(0xFF141E2C));
-        c.drawPath(p, t.stroke(0xFF4A5A70, 1.5f));
+        c.drawPath(p, t.fill(0xFF0C141F));
 
-        // Фонари.
+        // Кузов с плечами над арками.
+        p.reset();
+        float halfB = w * 0.46f;
+        p.moveTo(cx - w * 0.33f, glassBottom);
+        p.lineTo(cx + w * 0.33f, glassBottom);
+        p.quadTo(cx + halfB * 0.92f, y + h * 0.46f, cx + halfB, y + h * 0.60f);
+        p.lineTo(cx + halfB, y + h * 0.86f);
+        p.quadTo(cx + halfB, y + h * 0.94f, cx + halfB - w * 0.06f, y + h * 0.94f);
+        p.lineTo(cx - halfB + w * 0.06f, y + h * 0.94f);
+        p.quadTo(cx - halfB, y + h * 0.94f, cx - halfB, y + h * 0.86f);
+        p.lineTo(cx - halfB, y + h * 0.60f);
+        p.quadTo(cx - halfB * 0.92f, y + h * 0.46f, cx - w * 0.33f, glassBottom);
+        p.close();
+        c.drawPath(p, t.fill(0xFF16202E));
+        c.drawPath(p, t.stroke(0xFF56687F, 1.5f));
+
+        // Фонари — узкие, вытянутые к бокам.
         float ly = y + h * 0.56f;
-        float lh = h * 0.09f;
-        t.rect.set(cx - bodyW / 2f + w * 0.03f, ly, cx - bodyW * 0.16f, ly + lh);
-        c.drawRoundRect(t.rect, lh / 2f, lh / 2f, t.fill(0xFFB02A28));
-        t.rect.set(cx + bodyW * 0.16f, ly, cx + bodyW / 2f - w * 0.03f, ly + lh);
-        c.drawRoundRect(t.rect, lh / 2f, lh / 2f, t.fill(0xFFB02A28));
+        float lh = h * 0.085f;
+        t.rect.set(cx - halfB + w * 0.02f, ly, cx - w * 0.19f, ly + lh);
+        c.drawRoundRect(t.rect, lh * 0.45f, lh * 0.45f, t.fill(0xFFC03028));
+        t.rect.set(cx + w * 0.19f, ly, cx + halfB - w * 0.02f, ly + lh);
+        c.drawRoundRect(t.rect, lh * 0.45f, lh * 0.45f, t.fill(0xFFC03028));
 
-        // Номерной знак и выхлоп.
-        t.rect.set(cx - w * 0.11f, y + h * 0.72f, cx + w * 0.11f, y + h * 0.82f);
-        c.drawRoundRect(t.rect, 2f, 2f, t.stroke(0xFF5A6A80, 1.2f));
-        c.drawLine(cx - bodyW * 0.30f, y + h * 0.95f, cx - bodyW * 0.20f, y + h * 0.95f,
-                t.stroke(0xFF55637A, 3f));
-        c.drawLine(cx + bodyW * 0.20f, y + h * 0.95f, cx + bodyW * 0.30f, y + h * 0.95f,
-                t.stroke(0xFF55637A, 3f));
-
-        // Эмблема.
-        c.drawCircle(cx, y + h * 0.62f, w * 0.045f, t.stroke(0xFF8A94A4, 1.2f));
-        c.drawLine(cx - w * 0.032f, y + h * 0.62f, cx + w * 0.032f, y + h * 0.62f,
-                t.stroke(0xFF8A94A4, 1.2f));
+        // Эмблема, номер и выхлоп.
+        c.drawCircle(cx, y + h * 0.60f, w * 0.042f, t.stroke(0xFF97A2B2, 1.2f));
+        c.drawLine(cx - w * 0.030f, y + h * 0.60f, cx + w * 0.030f, y + h * 0.60f,
+                t.stroke(0xFF97A2B2, 1.2f));
+        t.rect.set(cx - w * 0.115f, y + h * 0.72f, cx + w * 0.115f, y + h * 0.83f);
+        c.drawRoundRect(t.rect, 2f, 2f, t.fill(0xFF0E1622));
+        c.drawRoundRect(t.rect, 2f, 2f, t.stroke(0xFF5E6E85, 1.1f));
+        t.rect.set(cx - halfB * 0.66f, y + h * 0.95f, cx - halfB * 0.40f, y + h * 0.99f);
+        c.drawRoundRect(t.rect, 2f, 2f, t.fill(0xFF6A798F));
+        t.rect.set(cx + halfB * 0.40f, y + h * 0.95f, cx + halfB * 0.66f, y + h * 0.99f);
+        c.drawRoundRect(t.rect, 2f, 2f, t.fill(0xFF6A798F));
     }
 
     /**
@@ -100,9 +109,9 @@ public final class Q50Rear {
 
         // Давление подписывается рядом со стойкой.
         String text = ch.hasValue() ? ch.text(1) : "—";
-        Paint p = t.text(ch.hasValue() ? Theme.WHITE : Theme.VALUE_DIM, 22f,
+        Paint p = t.text(ch.hasValue() ? Theme.WHITE : Theme.VALUE_DIM, 21f,
                 labelLeft ? Paint.Align.RIGHT : Paint.Align.LEFT, true);
-        float tx = labelLeft ? cx - w * 0.95f : cx + w * 0.95f;
+        float tx = labelLeft ? cx - w * 0.80f : cx + w * 0.80f;
         c.drawText(text, tx, cy + 8f, p);
     }
 }

@@ -12,16 +12,16 @@ public final class EnginePage implements Page {
     }
 
     public void draw(Canvas c, Theme t, VehicleData d, float w, float h) {
-        float r = 128f;
-        float cy = 150f;
-        Gauges.dial(c, t, w / 2f - 168f, cy, r, d.rpm,
-                0f, 8000f, 0, 8, 6800f, "RPM", "x1000", 1000f, 0);
-        Gauges.dial(c, t, w / 2f + 168f, cy, r, d.boostActual,
-                -1f, 2f, 2, 6, 1.8f, "BOOST", "bar", 1f, 1);
+        float r = 118f;
+        float cy = 125f;
+        Gauges.dial(c, t, w / 2f - 165f, cy, r, d.rpm,
+                0f, 8000f, 0, 8, 6800f, "RPM", "x1000", 1000f, 0, false);
+        Gauges.dial(c, t, w / 2f + 165f, cy, r, d.boostActual,
+                -1f, 2f, 2, 6, 1.8f, "BOOST", "bar", 1f, 1, false);
 
         float tw = (w - 28f - 30f) / 4f;
-        float ty = h - 92f;
-        float th = 78f;
+        float ty = h - 108f;
+        float th = 85f;
         Gauges.tile(c, t, col(0, tw), ty, tw, th, Icons.COOLANT, "ОХЛ. ЖИДКОСТЬ",
                 d.coolantTemp, 0, "°C", 105f, 112f);
         Gauges.tile(c, t, col(1, tw), ty, tw, th, Icons.OIL_TEMP, "ТЕМП. МАСЛА",

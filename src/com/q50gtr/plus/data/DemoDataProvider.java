@@ -54,8 +54,8 @@ public final class DemoDataProvider implements EcuTekSource, AirLiftSource {
         d.oilPressure.setDemo(1.6f + load * 3.4f + wobble(t, 2.9f) * 0.1f, nowMs);
         d.intakeTemp.setDemo(32f + load * 18f + wobble(t, 0.9f) * 2f, nowMs);
 
-        d.hpfpActual.setDemo(4.2f + load * 15.5f + wobble(t, 5.1f) * 0.4f, nowMs);
-        d.hpfpTarget.setDemo(4.5f + load * 15.6f, nowMs);
+        d.hpfpActual.setDemo(42f + load * 155f + wobble(t, 5.1f) * 4f, nowMs);
+        d.hpfpTarget.setDemo(45f + load * 156f, nowMs);
         d.afrB1.setDemo(14.7f - load * 3.3f + wobble(t, 4.3f) * 0.12f, nowMs);
         d.afrB2.setDemo(14.7f - load * 3.25f + wobble(t, 4.7f) * 0.12f, nowMs);
         d.stftB1.setDemo(wobble(t, 2.3f) * 4.5f, nowMs);
@@ -66,7 +66,7 @@ public final class DemoDataProvider implements EcuTekSource, AirLiftSource {
         d.ignitionTiming.setDemo(22f - load * 16f + wobble(t, 6.1f) * 1.4f, nowMs);
         d.knockRetard.setDemo(Math.max(0f, load * 2.4f - 1.4f + wobble(t, 8.3f) * 0.6f), nowMs);
         for (int i = 0; i < d.knockIndex.length; i++) {
-            float k = load * 28f + wobble(t, 3.7f + i * 1.13f) * 14f;
+            float k = load * 2.2f + wobble(t, 3.7f + i * 1.13f) * 1.1f;
             d.knockIndex[i].setDemo(Math.max(0f, k), nowMs);
         }
 
@@ -84,11 +84,11 @@ public final class DemoDataProvider implements EcuTekSource, AirLiftSource {
         d.batteryVoltage.setDemo(14.2f - load * 0.45f + wobble(t, 1.3f) * 0.06f, nowMs);
         d.ambientTemp.setDemo(17f + wobble(t, 0.05f) * 0.6f, nowMs);
 
-        d.airFrontLeft.setDemo(62f + wobble(t, 1.1f) * 2.5f, nowMs);
-        d.airFrontRight.setDemo(61f + wobble(t, 1.4f) * 2.5f, nowMs);
-        d.airRearLeft.setDemo(74f + wobble(t, 0.9f) * 2.5f, nowMs);
-        d.airRearRight.setDemo(73f + wobble(t, 1.2f) * 2.5f, nowMs);
-        d.airTank.setDemo(142f - wobble(t, 0.12f) * 8f, nowMs);
+        d.airFrontLeft.setDemo(2.4f + wobble(t, 1.1f) * 0.06f, nowMs);
+        d.airFrontRight.setDemo(2.4f + wobble(t, 1.4f) * 0.06f, nowMs);
+        d.airRearLeft.setDemo(2.3f + wobble(t, 0.9f) * 0.06f, nowMs);
+        d.airRearRight.setDemo(2.3f + wobble(t, 1.2f) * 0.06f, nowMs);
+        d.airTank.setDemo(9.4f - wobble(t, 0.12f) * 0.5f, nowMs);
 
         // LPFP intentionally left UNAVAILABLE: it is not logged on this car and
         // a demo number here would be a lie the driver could act on.
