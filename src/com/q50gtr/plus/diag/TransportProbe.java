@@ -39,6 +39,16 @@ public final class TransportProbe {
     private boolean usbGadget;
     private boolean anyHci;
     private int services;
+    private String diskKey = "";
+    private final java.util.List<String> hits = new java.util.ArrayList<String>();
+
+    private static String canon(String p) {
+        try {
+            return new File(p).getCanonicalPath();
+        } catch (Throwable t) {
+            return p;
+        }
+    }
 
     public TransportProbe(Context context) {
         this.context = context;
@@ -65,6 +75,10 @@ public final class TransportProbe {
     }
 
     /** Короткая сводка для экрана: один взгляд — один ответ. */
+    public String getDiskKey() {
+        return diskKey;
+    }
+
     public String summary() {
         return "root=" + (rootWorks ? "ДА" : (rootPresent ? "есть su, не даёт" : "нет"))
                 + "  HCI=" + (anyHci ? "ЕСТЬ" : "нет")
@@ -75,6 +89,7 @@ public final class TransportProbe {
 
     public void run() {
         line("== РАЗВЕДКА ТРАНСПОРТОВ (только чтение) ==");
+        int mark = report.length();
         kernel();
         rootCheck();
         hciCheck();
@@ -84,6 +99,12 @@ public final class TransportProbe {
         classCheck();
         ttyCheck();
         line("== КОНЕЦ ==");
+        // Итог ставится В НАЧАЛО отчёта: длинные строки на 800x480 обрезаются
+        // справа, и решающий вывод не должен зависеть от того, влез он в
+        // ширину экрана или нет.
+        report.insert(mark, "ИТОГ: " + summary() + "\n"
+                + "ИТОГ: модули на диске -> "
+                + (diskKey.length() == 0 ? "RNDIS/BTUSB НЕТ" : diskKey) + "\n");
     }
 
     private void kernel() {
@@ -150,12 +171,17 @@ public final class TransportProbe {
      */
     private void moduleFiles() {
         String[] dirs = {"/system/lib/modules", "/lib/modules", "/system/modules"};
+        StringBuilder seen = new StringBuilder();
         boolean found = false;
         for (int d = 0; d < dirs.length; d++) {
             File[] f = new File(dirs[d]).listFiles();
             if (f == null || f.length == 0) {
                 continue;
             }
+            if (seen.indexOf(canon(dirs[d])) >= 0) {
+                continue;   // /lib/modules часто ссылка на /system/lib/modules
+            }
+            seen.append(canon(dirs[d])).append(' ');
             found = true;
             StringBuilder key = new StringBuilder();
             int[] count = new int[1];
@@ -164,9 +190,18 @@ public final class TransportProbe {
             // там одну папку и объявил, что модулей нет. Теперь обход
             // рекурсивный — иначе это проверка папки снаружи, а не модулей.
             walk(new File(dirs[d]), 0, key, count);
-            line("  модули на диске (" + dirs[d] + "): найдено " + count[0] + " .ko");
-            line("  НА ДИСКЕ РЕШАЮЩИЕ: " + (key.length() == 0
-                    ? "rndis_host/btusb/usbnet НЕ НАЙДЕНЫ" : key.toString().trim()));
+            line("  модулей на диске: " + count[0]);
+            // Не «да/нет», а сами имена: список из 94 штук всё равно не
+            // прочитать, а по именам видно и точное написание, и близкие
+            // варианты, если модуль назван иначе.
+            line("  RNDIS/BT/NET на диске:");
+            for (int i = 0; i < hits.size(); i++) {
+                line("    " + hits.get(i));
+            }
+            if (hits.isEmpty()) {
+                line("    ничего похожего не найдено");
+            }
+            diskKey = key.toString().trim();
         }
         if (!found) {
             line("  каталогов с модулями не найдено");
@@ -195,6 +230,13 @@ public final class TransportProbe {
             String bare = nm.substring(0, nm.length() - 3);
             if (isKeyModule(bare)) {
                 key.append(bare).append(' ');
+            }
+            String low = bare.toLowerCase();
+            if (hits.size() < 24 && (low.indexOf("rndis") >= 0 || low.indexOf("btusb") >= 0
+                    || low.indexOf("usbnet") >= 0 || low.indexOf("cdc") >= 0
+                    || low.startsWith("bt_") || low.indexOf("bluetooth") >= 0
+                    || low.indexOf("ecm") >= 0 || low.indexOf("ncm") >= 0)) {
+                hits.add(bare);
             }
         }
     }

@@ -257,8 +257,41 @@ public final class DiagOverlay {
             to = n;
         }
 
-        float colW = 0f;
+        // Ширина колонки считается по самой длинной строке страницы. Если
+        // в две колонки строки не помещаются, колонка остаётся ОДНА: лучше
+        // больше страниц, чем текст, наползающий сам на себя. Именно это и
+        // случилось на первом снимке после перехода к фиксированному шрифту.
+        float maxW = l.w - 16f * l.s;
+        float longest = 0f;
         Paint m = t.text(FG, size, Paint.Align.LEFT, false);
+        for (int i = 0; i < n; i++) {
+            if (text[i] == null) {
+                continue;
+            }
+            float wv = m.measureText(text[i]);
+            if (wv > longest) {
+                longest = wv;
+            }
+        }
+        if (columns > 1 && longest + 24f * l.s > (maxW - 2f * pad) / columns) {
+            columns = 1;
+            rows = (int) ((maxH - 2f * pad - lh) / lh);
+            perPage = rows;
+            totalPages = (n + perPage - 1) / perPage;
+            if (totalPages < 1) {
+                totalPages = 1;
+            }
+            if (textPage >= totalPages) {
+                textPage = 0;
+            }
+            from = textPage * perPage;
+            to = from + perPage;
+            if (to > n) {
+                to = n;
+            }
+        }
+
+        float colW = 0f;
         for (int i = from; i < to; i++) {
             if (text[i] == null) {
                 continue;
@@ -271,7 +304,6 @@ public final class DiagOverlay {
         colW += 12f * l.s;
 
         float w = colW * columns + 2f * pad;
-        float maxW = l.w - 16f * l.s;
         if (w > maxW) {
             w = maxW;
             colW = (w - 2f * pad) / columns;
@@ -296,9 +328,9 @@ public final class DiagOverlay {
             int idx = i - from;
             int col = idx / rows;
             int row = idx % rows;
-            c.drawText(text[i], x + pad + col * colW,
-                    y + pad + (row + 1) * lh - lh * 0.22f,
-                    t.text(colour[i], size, Paint.Align.LEFT, false));
+            Paint tp = t.text(colour[i], size, Paint.Align.LEFT, false);
+            c.drawText(fit(text[i], tp, colW - 10f * l.s), x + pad + col * colW,
+                    y + pad + (row + 1) * lh - lh * 0.22f, tp);
         }
 
         // Подвал: какая страница и как листать. Без него не догадаться, что
@@ -309,6 +341,24 @@ public final class DiagOverlay {
                     x + w * 0.5f, y + h - lh * 0.30f,
                     t.text(KEY, size * 0.95f, Paint.Align.CENTER, false));
         }
+    }
+
+    /** Укорачивает строку до ширины колонки, чтобы она не лезла в соседнюю. */
+    private static String fit(String s, Paint p, float w) {
+        if (p.measureText(s) <= w) {
+            return s;
+        }
+        int lo = 1;
+        int hi = s.length();
+        while (lo < hi) {
+            int mid = (lo + hi + 1) / 2;
+            if (p.measureText(s.substring(0, mid) + "…") <= w) {
+                lo = mid;
+            } else {
+                hi = mid - 1;
+            }
+        }
+        return s.substring(0, lo) + "…";
     }
 
     /** Попадание в панель: нужно, чтобы отличить листание от смены вкладки. */
