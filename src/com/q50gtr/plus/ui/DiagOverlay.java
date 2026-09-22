@@ -29,7 +29,8 @@ public final class DiagOverlay {
     public static final int SENSORS = 2;
     public static final int ECUTEK = 3;
     public static final int BLUETOOTH = 4;
-    public static final int PAGES = 5;
+    public static final int TRANSPORT = 5;
+    public static final int PAGES = 6;
 
     /* Палитра оверлея: максимальный контраст, никакого «приглушённого». */
     private static final int FG = 0xFFFFFFFF;
@@ -45,6 +46,11 @@ public final class DiagOverlay {
 
     /** Версия сборки: без неё непонятно, что именно сейчас на устройстве. */
     private static String version = "?";
+    private static com.q50gtr.plus.diag.TransportProbe transport;
+
+    public static void setTransport(com.q50gtr.plus.diag.TransportProbe p) {
+        transport = p;
+    }
 
     public static void setVersion(String v) {
         version = v == null ? "?" : v;
@@ -53,7 +59,10 @@ public final class DiagOverlay {
     public static void draw(Canvas c, Theme t, Layout l, DataHub hub,
                             VehicleProbe probe, DisplayInfo display, long nowMs,
                             int page) {
-        if (page == BLUETOOTH) {
+        if (page == TRANSPORT) {
+            drawText(c, t, l, transport == null ? null : transport.getReport(),
+                    "РАЗВЕДКА ТРАНСПОРТОВ");
+        } else if (page == BLUETOOTH) {
             drawBluetooth(c, t, l, hub);
         } else if (page == ECUTEK) {
             drawEcuTek(c, t, l, hub, nowMs);
@@ -116,6 +125,11 @@ public final class DiagOverlay {
                     + (b.getLastSender() == null ? "" : "  от " + b.getLastSender());
             colour[n] = DIM;
             text[n++] = "АДРЕС ГУ: " + b.getLocalAddresses();
+            colour[n] = b.getPacketCount() > 0 ? OK : DIM;
+            text[n++] = "ТЕСТ: " + b.getTestInfo();
+            if (transport != null && transport.getReport().length() > 0) {
+                colour[n] = FG; text[n++] = "ТРАНСПОРТ: " + transport.summary();
+            }
             if (b.getLastError() != null) {
                 colour[n] = ERR; text[n++] = "МОСТ ERR: " + b.getLastError();
             }
@@ -340,6 +354,38 @@ public final class DiagOverlay {
         c.drawText("ПРОВЕРИТЬ BLUETOOTH  +  ЭКСПОРТ",
                 (r[0] + r[2]) * 0.5f, r[3] - 11f * l.s,
                 t.text(FG, 14f * l.s, Paint.Align.CENTER, false));
+    }
+
+    /** Готовый текстовый отчёт на экран: разбивается на строки и колонки. */
+    private static void drawText(Canvas c, Theme t, Layout l, String report, String title) {
+        if (report == null || report.length() == 0) {
+            String[] one = {title + ": ещё не готов"};
+            int[] col = {HOT};
+            panel(c, t, l, one, col, 1, 1);
+            return;
+        }
+        String[] raw = report.split("\n");
+        String[] text = new String[raw.length + 1];
+        int[] colour = new int[raw.length + 1];
+        int n = 0;
+        colour[n] = KEY; text[n++] = title;
+        for (int i = 0; i < raw.length && n < text.length; i++) {
+            String ln = raw[i];
+            if (ln == null || ln.trim().length() == 0) {
+                continue;
+            }
+            String low = ln.toLowerCase();
+            if (low.indexOf("есть") >= 0 || low.indexOf("uid=0") >= 0) {
+                colour[n] = OK;
+            } else if (low.indexOf("нет") >= 0 || low.indexOf("пуст") >= 0
+                    || low.indexOf("null") >= 0 || low.indexOf("не ") >= 0) {
+                colour[n] = HOT;
+            } else {
+                colour[n] = ln.startsWith("--") || ln.startsWith("==") ? KEY : FG;
+            }
+            text[n++] = ln;
+        }
+        panel(c, t, l, text, colour, n, n > 22 ? 2 : 1);
     }
 
     private static void drawBluetooth(Canvas c, Theme t, Layout l, DataHub hub) {

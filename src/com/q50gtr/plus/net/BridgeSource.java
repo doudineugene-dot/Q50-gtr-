@@ -57,6 +57,16 @@ public final class BridgeSource implements DataSource {
     private volatile String lastError;
     private volatile String lastSender;
 
+    /*
+     * Тестовый канал. Прежде чем гнать по мосту телеметрию, надо доказать
+     * сам мост: что пакеты доходят, не теряются и не приходят задом наперёд.
+     * Для этого отправитель шлёт TEST_COUNTER (растущее целое) и
+     * TEST_MS (свои миллисекунды). По ним видно и пропуски, и задержку.
+     */
+    private volatile long testCounter = -1;
+    private volatile long testGaps;
+    private volatile long testLatencyMs = Long.MIN_VALUE;
+
     /** Принятые значения ждут тика UI: в поток приёма лезть отрисовке нельзя. */
     private final Object lock = new Object();
     private final java.util.HashMap<String, float[]> pending =
@@ -80,6 +90,15 @@ public final class BridgeSource implements DataSource {
 
     public String getLastSender() {
         return lastSender;
+    }
+
+    /** Строка для диагностического экрана: жив ли канал и как он себя ведёт. */
+    public String getTestInfo() {
+        if (testCounter < 0) {
+            return "тестовых пакетов не было";
+        }
+        return "счётчик=" + testCounter + "  пропусков=" + testGaps
+                + (testLatencyMs == Long.MIN_VALUE ? "" : "  сдвиг=" + testLatencyMs + "ms");
     }
 
     /** Адреса, на которые можно слать: их и надо вбить в телефоне. */
@@ -183,6 +202,21 @@ public final class BridgeSource implements DataSource {
                     continue;
                 }
                 if (v != v || v == Float.POSITIVE_INFINITY || v == Float.NEGATIVE_INFINITY) {
+                    continue;
+                }
+                if ("TEST_COUNTER".equals(key)) {
+                    long v2 = (long) v;
+                    if (testCounter >= 0 && v2 > testCounter + 1) {
+                        testGaps += v2 - testCounter - 1;
+                    }
+                    testCounter = v2;
+                    continue;
+                }
+                if ("TEST_MS".equals(key)) {
+                    // Часы телефона и ГУ не синхронизированы, поэтому сдвиг
+                    // сам по себе ничего не значит — значим его РОСТ: он
+                    // показывает, что пакеты отстают.
+                    testLatencyMs = System.currentTimeMillis() - (long) v;
                     continue;
                 }
                 float[] cell = pending.get(key);

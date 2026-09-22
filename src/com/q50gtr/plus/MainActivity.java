@@ -18,6 +18,7 @@ import com.q50gtr.plus.data.InTouchVehicleSource;
 import com.q50gtr.plus.data.Channel;
 import com.q50gtr.plus.data.VehicleProbe;
 import com.q50gtr.plus.diag.DiagnosticBundle;
+import com.q50gtr.plus.diag.TransportProbe;
 import com.q50gtr.plus.diag.DiagnosticReport;
 import com.q50gtr.plus.diag.UsbStorage;
 import com.q50gtr.plus.ecutek.EcuTekParameters;
@@ -41,6 +42,7 @@ public final class MainActivity extends Activity {
     private VehicleProbe probe;
     private EcuTekLiveSource ecuTek;
     private com.q50gtr.plus.net.BridgeSource bridge;
+    private TransportProbe transport;
     private final EcuTekRawLog rawLog = new EcuTekRawLog();
     private final Handler handler = new Handler();
     /** Раз в столько миллисекунд отчёты уходят на флешку сами. */
@@ -80,6 +82,20 @@ public final class MainActivity extends Activity {
         hub = new DataHub(new InTouchVehicleSource(this), ecuTek,
                 new AirLiftLiveSource(), new DemoDataProvider(), bridge);
         com.q50gtr.plus.ui.DiagOverlay.setVersion(versionName());
+        // Разведка транспортов идёт в фоне: она читает десятки файлов и
+        // зовёт перечисляющие утилиты, а отрисовку приборов задерживать
+        // из-за этого нельзя.
+        transport = new TransportProbe(this);
+        com.q50gtr.plus.ui.DiagOverlay.setTransport(transport);
+        new Thread(new Runnable() {
+            public void run() {
+                try {
+                    transport.run();
+                } catch (Throwable t) {
+                    Log.w(TAG, "разведка транспортов упала: " + t);
+                }
+            }
+        }, "q50-transport").start();
         dashboard = new DashboardView(this, hub);
         dashboard.setProbe(probe);
         // MATCH_PARENT x MATCH_PARENT: никаких фиксированных размеров, вью
@@ -164,7 +180,9 @@ public final class MainActivity extends Activity {
                     ? "Зонд Bluetooth не отработал.\n" : ecuTek.getProbe().getReport();
             String pars = EcuTekParameters.build(hub.getData(), ecuTek.getProbe(),
                     ecuTek.getStateName(), ecuTek.getLastError());
-            String zip = DiagnosticBundle.write(bt, pars, rawLog.dump(), buildReport());
+            String tr = transport == null ? "(не готово)\n" : transport.getReport();
+            String zip = DiagnosticBundle.write(bt + "\n\n" + tr, pars,
+                    rawLog.dump(), buildReport());
             if (zip != null) {
                 Log.i(TAG, "архив диагностики: " + zip);
             }
