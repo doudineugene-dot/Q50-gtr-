@@ -26,6 +26,8 @@ public final class VehicleProbe {
     private static final String CAN_PERMISSION = "com.ygomi.permission.IVI_CAN_READ";
 
     private final StringBuilder report = new StringBuilder();
+    /** Имена автомобильных сенсоров, которым у нас ещё нет канала. */
+    private final java.util.List<String> unmappedNames = new java.util.ArrayList<String>();
 
     private int sensorCount;
     private int vehicleCount;
@@ -55,6 +57,15 @@ public final class VehicleProbe {
 
     public String getReport() {
         return report.toString();
+    }
+
+    /**
+     * Имена, которые ГУ отдаёт, а мы ещё не принимаем. Ради них зонд и
+     * существует: пока список виден только в логе и в отчёте на флешке, а в
+     * машине не бывает ни того, ни другого — поэтому он нужен и на экране.
+     */
+    public java.util.List<String> getUnmappedNames() {
+        return unmappedNames;
     }
 
     /** Признак автомобильного сенсора: вендор, имя или диапазон типов. */
@@ -149,6 +160,7 @@ public final class VehicleProbe {
             } else {
                 unmappedCount++;
                 unmapped.append(name).append(' ');
+                unmappedNames.add(name);
             }
             line("  t" + s.getType() + " " + name
                     + (mapped ? "  -> канал" : "  (НЕ ПРИВЯЗАН)"));

@@ -10,92 +10,191 @@ import com.q50gtr.plus.data.VehicleData;
 import com.q50gtr.plus.data.VehicleProbe;
 
 /**
- * Диагностический оверлей: состояние транспорта и источники ключевых каналов.
+ * Диагностический оверлей: состояние транспорта, источники каналов и список
+ * сигналов, которые ГУ отдаёт, а мы ещё не принимаем.
  *
  * По умолчанию выключен и ничего не рисует, поэтому утверждённый визуал он не
- * меняет. Включается скрытым жестом — тройное касание левого верхнего угла
- * верхней полосы (см. DashboardView). Отдельная сборка для этого не нужна.
+ * меняет. Переключается долгим нажатием (около секунды) на часы в верхней
+ * полосе: ВЫКЛ -> СОСТОЯНИЕ -> СЕНСОРЫ -> ВЫКЛ.
+ *
+ * Читается он с фотографии в солнечном салоне, а не в тёмной комнате, поэтому
+ * цвета здесь свои, яркие, а не приглушённые из темы приборов: первый снимок с
+ * машины наполовину не читался именно из-за серого по чёрному.
  */
 public final class DiagOverlay {
+
+    public static final int OFF = 0;
+    public static final int STATUS = 1;
+    public static final int SENSORS = 2;
+    public static final int PAGES = 3;
+
+    /* Палитра оверлея: максимальный контраст, никакого «приглушённого». */
+    private static final int FG = 0xFFFFFFFF;
+    private static final int DIM = 0xFFC8D2E0;
+    private static final int OK = 0xFF57F08A;
+    private static final int HOT = 0xFFFFB13B;
+    private static final int ERR = 0xFFFF6B6B;
+    private static final int KEY = 0xFF9FC4FF;
+    private static final int BG = 0xFF000000;
 
     private DiagOverlay() {
     }
 
     public static void draw(Canvas c, Theme t, Layout l, DataHub hub,
-                            VehicleProbe probe, DisplayInfo display, long nowMs) {
+                            VehicleProbe probe, DisplayInfo display, long nowMs,
+                            int page) {
+        if (page == SENSORS) {
+            drawSensors(c, t, l, probe);
+        } else {
+            drawStatus(c, t, l, hub, probe, display, nowMs);
+        }
+    }
+
+    private static void drawStatus(Canvas c, Theme t, Layout l, DataHub hub,
+                                   VehicleProbe probe, DisplayInfo display, long nowMs) {
         VehicleData d = hub.getData();
 
-        float w = 340f * l.s;
-        float x = l.w - w - 8f * l.s;
-        float y = 52f * l.s;
-        float lh = 14f * l.s;
+        String[] text = new String[24];
+        int[] colour = new int[24];
+        int n = 0;
 
-        t.rect.set(x, y, x + w, y + lh * 17f + 12f * l.s);
-        c.drawRoundRect(t.rect, 4f, 4f, t.fill(0xE0000000));
-        c.drawRoundRect(t.rect, 4f, 4f, t.stroke(Theme.ACCENT, 1f));
-
-        float ty = y + 16f * l.s;
         if (display != null) {
-            ty = line(c, t, x + 8f * l.s, ty, lh, display.summary(), Theme.LABEL);
+            colour[n] = DIM; text[n++] = display.summary();
         }
-        ty = line(c, t, x + 8f * l.s, ty, lh,
-                "LAYOUT: " + (int) l.w + "x" + (int) l.h + "  s=" + l.s
-                        + "  r=" + (int) l.dialR, Theme.LABEL);
-        ty = line(c, t, x + 8f * l.s, ty, lh, "SOURCE: " + hub.getSourceLabel(), Theme.ACCENT);
-        ty = line(c, t, x + 8f * l.s, ty, lh,
-                hub.isLive() ? "STATE:  LIVE" : "STATE:  DEMO (нет связи)",
-                hub.isLive() ? 0xFF6BD07A : Theme.WARN);
+        colour[n] = DIM;
+        text[n++] = "LAYOUT: " + (int) l.w + "x" + (int) l.h
+                + "  s=" + l.s + "  r=" + (int) l.dialR;
+        colour[n] = KEY; text[n++] = "SOURCE: " + hub.getSourceLabel();
+        colour[n] = hub.isLive() ? OK : HOT;
+        text[n++] = hub.isLive() ? "STATE:  LIVE" : "STATE:  DEMO (нет связи)";
 
         if (hub.getInTouch() instanceof InTouchVehicleSource) {
             InTouchVehicleSource s = (InTouchVehicleSource) hub.getInTouch();
-            ty = line(c, t, x + 8f * l.s, ty, lh,
-                    "INTOUCH: " + (s.isConnected() ? "CONNECTED" : "DISCONNECTED")
-                            + "  bound=" + s.getBoundCount(), Theme.WHITE);
+            colour[n] = FG;
+            text[n++] = "INTOUCH: " + (s.isConnected() ? "CONNECTED" : "DISCONNECTED")
+                    + "  bound=" + s.getBoundCount();
             long age = s.getLastFrameMs() == 0 ? -1 : nowMs - s.getLastFrameMs();
-            ty = line(c, t, x + 8f * l.s, ty, lh,
-                    "RX: " + s.getFrameCount() + "  age="
-                            + (age < 0 ? "--" : age + "ms"), Theme.WHITE);
+            colour[n] = FG;
+            text[n++] = "RX: " + s.getFrameCount() + "  age="
+                    + (age < 0 ? "--" : age + "ms");
             if (s.getLastError() != null) {
-                ty = line(c, t, x + 8f * l.s, ty, lh, "ERR: " + s.getLastError(), Theme.RED);
+                colour[n] = ERR; text[n++] = "ERR: " + s.getLastError();
             }
         }
         if (probe != null) {
-            ty = line(c, t, x + 8f * l.s, ty, lh,
-                    "PROBE: sensors=" + probe.getSensorCount()
-                            + " veh=" + probe.getVehicleCount()
-                            + " mapped=" + probe.getMappedCount(), Theme.LABEL);
-            ty = line(c, t, x + 8f * l.s, ty, lh,
-                    "IVI_CAN_READ: " + (probe.isPermissionGranted() ? "GRANTED" : "DENIED"),
-                    probe.isPermissionGranted() ? Theme.LABEL : Theme.RED);
+            colour[n] = FG;
+            text[n++] = "PROBE: sensors=" + probe.getSensorCount()
+                    + " veh=" + probe.getVehicleCount()
+                    + " mapped=" + probe.getMappedCount()
+                    + " free=" + probe.getUnmappedNames().size();
+            colour[n] = probe.isPermissionGranted() ? FG : ERR;
+            text[n++] = "IVI_CAN_READ: "
+                    + (probe.isPermissionGranted() ? "GRANTED" : "DENIED");
         }
 
-        ty += 4f * l.s;
-        ty = channel(c, t, x + 8f * l.s, ty, lh, "RPM", d.rpm, nowMs);
-        ty = channel(c, t, x + 8f * l.s, ty, lh, "SPEED", d.speed, nowMs);
-        ty = channel(c, t, x + 8f * l.s, ty, lh, "COOLANT", d.coolantTemp, nowMs);
-        ty = channel(c, t, x + 8f * l.s, ty, lh, "OIL P", d.oilPressure, nowMs);
-        ty = channel(c, t, x + 8f * l.s, ty, lh, "THROTTLE", d.throttle, nowMs);
-        ty = channel(c, t, x + 8f * l.s, ty, lh, "BOOST", d.boostActual, nowMs);
-        channel(c, t, x + 8f * l.s, ty, lh, "KNOCK", d.knockRetard, nowMs);
+        colour[n] = 0; text[n++] = null;   // пустая строка
+
+        n = channel(text, colour, n, "RPM", d.rpm, nowMs);
+        n = channel(text, colour, n, "SPEED", d.speed, nowMs);
+        n = channel(text, colour, n, "COOLANT", d.coolantTemp, nowMs);
+        n = channel(text, colour, n, "OIL P", d.oilPressure, nowMs);
+        n = channel(text, colour, n, "THROTTLE", d.throttle, nowMs);
+        n = channel(text, colour, n, "BOOST", d.boostActual, nowMs);
+        n = channel(text, colour, n, "KNOCK", d.knockRetard, nowMs);
+
+        panel(c, t, l, text, colour, n, 1);
     }
 
-    private static float channel(Canvas c, Theme t, float x, float y, float lh,
-                                 String name, Channel ch, long nowMs) {
+    private static void drawSensors(Canvas c, Theme t, Layout l, VehicleProbe probe) {
+        java.util.List<String> free = probe == null
+                ? new java.util.ArrayList<String>() : probe.getUnmappedNames();
+
+        String[] text = new String[free.size() + 2];
+        int[] colour = new int[free.size() + 2];
+        int n = 0;
+        colour[n] = KEY;
+        text[n++] = "БЕЗ ПРИВЯЗКИ: " + free.size() + "  (префикс VS_ID_ убран)";
+        colour[n] = 0; text[n++] = null;
+        for (int i = 0; i < free.size(); i++) {
+            String s = free.get(i);
+            if (s != null && s.startsWith("VS_ID_")) {
+                s = s.substring(6);
+            }
+            colour[n] = FG;
+            text[n++] = s;
+        }
+        panel(c, t, l, text, colour, n, 2);
+    }
+
+    /**
+     * Рисует панель, сама подбирая размер шрифта и число колонок так, чтобы
+     * все строки поместились в экран. Раньше высота была задана константой, и
+     * строки, не влезшие в неё, просто пропадали за краем.
+     */
+    private static void panel(Canvas c, Theme t, Layout l, String[] text, int[] colour,
+                              int n, int columns) {
+        float pad = 8f * l.s;
+        float top = 50f * l.s;
+        float bottom = l.h - 8f * l.s;
+        float maxH = bottom - top;
+
+        int rows = (n + columns - 1) / columns;
+        float lh = (maxH - 2f * pad) / rows;
+        float maxLh = 19f * l.s;
+        if (lh > maxLh) {
+            lh = maxLh;
+        }
+        float size = lh * 0.80f;
+
+        float colW = 0f;
+        Paint m = t.text(FG, size, Paint.Align.LEFT, false);
+        for (int i = 0; i < n; i++) {
+            if (text[i] == null) {
+                continue;
+            }
+            float wv = m.measureText(text[i]);
+            if (wv > colW) {
+                colW = wv;
+            }
+        }
+        colW += 12f * l.s;
+
+        float w = colW * columns + 2f * pad;
+        float maxW = l.w - 16f * l.s;
+        if (w > maxW) {
+            w = maxW;
+            colW = (w - 2f * pad) / columns;
+        }
+        float h = rows * lh + 2f * pad;
+        float x = l.w - w - 8f * l.s;
+        float y = top;
+
+        // Фон почти непрозрачный: на солнце полупрозрачная подложка давала
+        // серый текст на сером приборе.
+        t.rect.set(x, y, x + w, y + h);
+        c.drawRoundRect(t.rect, 4f, 4f, t.fill(BG));
+        c.drawRoundRect(t.rect, 4f, 4f, t.stroke(KEY, 1.5f));
+
+        for (int i = 0; i < n; i++) {
+            if (text[i] == null) {
+                continue;
+            }
+            int col = i / rows;
+            int row = i % rows;
+            c.drawText(text[i], x + pad + col * colW,
+                    y + pad + (row + 1) * lh - lh * 0.22f,
+                    t.text(colour[i], size, Paint.Align.LEFT, false));
+        }
+    }
+
+    private static int channel(String[] text, int[] colour, int n,
+                               String name, Channel ch, long nowMs) {
         String src = ch.getSource() == null ? "-" : ch.getSource();
         String age = ch.getUpdatedAtMs() == 0 ? "--" : (nowMs - ch.getUpdatedAtMs()) + "ms";
-        int colour = ch.isLive() ? 0xFF6BD07A
-                : (ch.isStale() ? Theme.WARN
-                : (ch.hasValue() ? Theme.LABEL : Theme.VALUE_DIM));
-        return line(c, t, x, y, lh,
-                name + " " + ch.text(1) + "  " + ch.getStatusText()
-                        + "  " + src + "  " + age
-                        + "  n=" + ch.getUpdates() + "  [" + ch.getObservedRange() + "]",
-                colour);
-    }
-
-    private static float line(Canvas c, Theme t, float x, float y, float lh,
-                              String s, int colour) {
-        c.drawText(s, x, y, t.text(colour, lh * 0.78f, Paint.Align.LEFT, false));
-        return y + lh;
+        colour[n] = ch.isLive() ? OK : (ch.isStale() ? HOT : (ch.hasValue() ? DIM : ERR));
+        text[n] = name + " " + ch.text(1) + "  " + ch.getStatusText()
+                + "  " + src + "  " + age
+                + "  n=" + ch.getUpdates() + "  [" + ch.getObservedRange() + "]";
+        return n + 1;
     }
 }

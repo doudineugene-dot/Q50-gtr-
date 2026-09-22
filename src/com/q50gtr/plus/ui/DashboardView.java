@@ -43,7 +43,7 @@ public final class DashboardView extends View implements Runnable {
 
     /* Скрытый диагностический оверлей: по умолчанию выключен. */
     private VehicleProbe probe;
-    private boolean diag;
+    private int diagPage;
     private long clockPressAtMs;
 
     private int page;
@@ -165,8 +165,9 @@ public final class DashboardView extends View implements Runnable {
 
         OemNavigation.draw(canvas, t, l, titles, page);
 
-        if (diag) {
-            DiagOverlay.draw(canvas, t, l, hub, probe, display, System.currentTimeMillis());
+        if (diagPage != DiagOverlay.OFF) {
+            DiagOverlay.draw(canvas, t, l, hub, probe, display,
+                    System.currentTimeMillis(), diagPage);
         }
     }
 
@@ -236,11 +237,12 @@ public final class DashboardView extends View implements Runnable {
 
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_CANCEL: {
-                // Долгое нажатие на часы переключает диагностический оверлей.
+                // Долгое нажатие на часы листает диагностический оверлей:
+                // ВЫКЛ -> СОСТОЯНИЕ -> СЕНСОРЫ -> ВЫКЛ.
                 if (clockPressAtMs != 0L && isOnClock(l, x, y)
                         && System.currentTimeMillis() - clockPressAtMs >= 900L) {
                     clockPressAtMs = 0L;
-                    diag = !diag;
+                    diagPage = (diagPage + 1) % DiagOverlay.PAGES;
                     invalidate();
                     return true;
                 }
