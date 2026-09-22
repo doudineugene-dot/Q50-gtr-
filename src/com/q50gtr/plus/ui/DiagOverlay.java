@@ -245,6 +245,11 @@ public final class DiagOverlay {
         textPage = 0;
     }
 
+    /** Есть ли что листать на текущей странице. */
+    public static boolean hasMoreThanOnePage() {
+        return totalPages > 1;
+    }
+
     private static void panel(Canvas c, Theme t, Layout l, String[] text, int[] colour,
                               int n, int columns) {
         float pad = 8f * l.s;

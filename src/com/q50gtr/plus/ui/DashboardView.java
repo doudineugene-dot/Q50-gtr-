@@ -265,8 +265,14 @@ public final class DashboardView extends View implements Runnable {
                 boolean onButton = DiagOverlay.buttonLabel(diagPage) != null
                         && DiagOverlay.hitButton(l, x, y)
                         && DiagOverlay.hitButton(l, downX, downY);
+                // СОСТОЯНИЕ раньше из листания исключалось: страница была
+                // одна, и касание по ней логично переключало вкладку. Теперь
+                // строк там три экрана, подпись честно зовёт листать, а
+                // касание молча меняло вкладку — потому и «не листает».
+                // Условие стало по существу: листаем, когда есть что листать.
                 if (!dragging && diagPage != DiagOverlay.OFF
-                        && diagPage != DiagOverlay.STATUS
+                        && (diagPage != DiagOverlay.STATUS
+                                || DiagOverlay.hasMoreThanOnePage())
                         && DiagOverlay.hitPanel(l, y, y)
                         && !onButton) {
                     clockPressAtMs = 0L;
