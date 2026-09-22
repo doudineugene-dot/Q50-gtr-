@@ -137,20 +137,45 @@ public final class EcuTekBluetoothProbe {
 
     /* ------------------------------------------------------------------ */
 
-    /** Снимает состояние адаптера и список сопряжённых. Не ищет в эфире. */
-    public void probeAdapter() {
-        BluetoothAdapter a;
+    /**
+     * Снимает состояние адаптера и список сопряжённых. Не ищет в эфире.
+     *
+     * {@code given} — адаптер, полученный вызывающей стороной в ГЛАВНОМ
+     * потоке. Это не перестраховка: на старых Android
+     * {@code getDefaultAdapter()} завязан на Looper вызывающего потока, и из
+     * фонового потока может вернуть null на устройстве, где Bluetooth есть.
+     * Первый замер на машине дал именно null — и пока не исключена эта
+     * причина, утверждать «адаптера нет» нельзя. Поэтому снимаем оба раза и
+     * пишем оба результата.
+     */
+    public void probeAdapter(BluetoothAdapter given) {
+        systemEvidence();
+
+        BluetoothAdapter a = given;
+        line("getDefaultAdapter из главного потока: "
+                + (given == null ? "null" : "ЕСТЬ"));
+        BluetoothAdapter here = null;
         try {
-            a = BluetoothAdapter.getDefaultAdapter();
+            here = BluetoothAdapter.getDefaultAdapter();
         } catch (Throwable t) {
-            adapterState = NO_ADAPTER;
-            failure = "getDefaultAdapter: " + t;
-            line(failure);
-            return;
+            line("getDefaultAdapter из фонового потока: исключение " + t);
         }
+        line("getDefaultAdapter из фонового потока: "
+                + (here == null ? "null" : "ЕСТЬ"));
+        if (a == null) {
+            a = here;
+        }
+        if (given == null && here != null) {
+            line("ВАЖНО: из фонового потока адаптер есть, из главного нет");
+        }
+        if (given != null && here == null) {
+            line("ВАЖНО: из главного потока адаптер есть, из фонового нет —"
+                    + " значит прежний отрицательный ответ был ошибкой замера");
+        }
+
         if (a == null) {
             adapterState = NO_ADAPTER;
-            line("Bluetooth adapter: НЕТ (getDefaultAdapter вернул null)");
+            line("Bluetooth adapter: НЕ ПОЛУЧЕН ни одним способом");
             return;
         }
         try {
@@ -187,6 +212,70 @@ public final class EcuTekBluetoothProbe {
                 devices.add(f);
                 line("  " + f.line());
             }
+        }
+    }
+
+    /**
+     * Косвенные признаки Bluetooth в системе. Нужны, чтобы отличить «в
+     * Android нет стека» от «стек есть, но мы спросили неправильно». На
+     * автомобильных ГУ Bluetooth часто висит на отдельном модуле, и
+     * Android-сторона о нём может не знать вовсе — но тогда и этих следов не
+     * будет.
+     */
+    private void systemEvidence() {
+        line("-- признаки Bluetooth в системе --");
+        try {
+            boolean feat = context.getPackageManager()
+                    .hasSystemFeature("android.hardware.bluetooth");
+            line("  hasSystemFeature(android.hardware.bluetooth) = " + feat);
+        } catch (Throwable t) {
+            line("  hasSystemFeature: " + t);
+        }
+        try {
+            Object svc = context.getSystemService("bluetooth");
+            line("  getSystemService(\"bluetooth\") = " + (svc == null ? "null" : "есть"));
+        } catch (Throwable t) {
+            line("  getSystemService: " + t);
+        }
+        String[] paths = {
+                "/sys/class/bluetooth", "/proc/net/bluetooth", "/data/misc/bluetooth",
+                "/data/misc/bluetoothd", "/system/bin/hciconfig", "/system/xbin/hciconfig",
+                "/system/bin/hciattach", "/dev/ttyHS0", "/dev/rfkill",
+                "/system/etc/bluetooth", "/system/lib/libbluetooth_jni.so",
+                "/system/framework/javax.obex.jar",
+        };
+        for (int i = 0; i < paths.length; i++) {
+            java.io.File f = new java.io.File(paths[i]);
+            if (f.exists()) {
+                line("  ЕСТЬ  " + paths[i] + (f.isDirectory() ? "/" : ""));
+            }
+        }
+        try {
+            java.io.File sys = new java.io.File("/sys/class/bluetooth");
+            java.io.File[] hci = sys.listFiles();
+            if (hci != null) {
+                for (int i = 0; i < hci.length; i++) {
+                    line("  hci: " + hci[i].getName());
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        try {
+            java.util.List<android.content.pm.ApplicationInfo> apps =
+                    context.getPackageManager().getInstalledApplications(0);
+            int shown = 0;
+            for (int i = 0; i < apps.size() && shown < 8; i++) {
+                String pkg = apps.get(i).packageName;
+                if (pkg != null && pkg.toLowerCase().indexOf("bluetooth") >= 0) {
+                    line("  пакет: " + pkg);
+                    shown++;
+                }
+            }
+            if (shown == 0) {
+                line("  пакетов со словом bluetooth не найдено");
+            }
+        } catch (Throwable t) {
+            line("  getInstalledApplications: " + t);
         }
     }
 

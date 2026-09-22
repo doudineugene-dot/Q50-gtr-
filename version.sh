@@ -1,7 +1,7 @@
 # Версия и имя файла сборки — единственное место, где они задаются.
 
 # Совпадает с android:versionName в AndroidManifest.xml; build.sh это проверяет.
-VERSION="0.8.1-rpm"
+VERSION="0.8.2-bt"
 
 # Номер сборки: в CI — номер прогона (растёт сам), локально — дата и время.
 if [ -n "${GITHUB_RUN_NUMBER:-}" ]; then

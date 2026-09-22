@@ -2,6 +2,8 @@ package com.q50gtr.plus;
 
 import android.app.Activity;
 import android.os.Bundle;
+import android.os.Handler;
+import android.view.KeyEvent;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
@@ -39,6 +41,9 @@ public final class MainActivity extends Activity {
     private VehicleProbe probe;
     private EcuTekLiveSource ecuTek;
     private final EcuTekRawLog rawLog = new EcuTekRawLog();
+    private final Handler handler = new Handler();
+    /** Раз в столько миллисекунд отчёты уходят на флешку сами. */
+    private static final long SAVE_EVERY_MS = 20000L;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -79,6 +84,15 @@ public final class MainActivity extends Activity {
         dashboard.setLayoutParams(new ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT));
+        // Экранная стрелка «назад» до сих пор ничего не делала: на ГУ
+        // аппаратной кнопки «назад» может не оказаться, и тогда из приложения
+        // нечем выйти — а вместе с выходом терялась вся диагностика.
+        dashboard.setOnExit(new Runnable() {
+            public void run() {
+                Log.i(TAG, "выход по экранной стрелке");
+                finish();
+            }
+        });
         setContentView(dashboard);
 
         if (savedInstanceState != null) {
@@ -91,14 +105,33 @@ public final class MainActivity extends Activity {
         super.onResume();
         hub.start();
         dashboard.start();
+        handler.removeCallbacks(saver);
+        handler.postDelayed(saver, SAVE_EVERY_MS);
     }
 
-    @Override
-    protected void onPause() {
-        dashboard.stop();
-        hub.stop();
-        // Отчёт пишется на выходе: к этому моменту уже видно, какие каналы
-        // приходили, а какие нет. В машине adb может не быть.
+    /**
+     * Отчёты пишутся по таймеру, а не только на выходе.
+     *
+     * Так уже было в предыдущем проекте на этом же ГУ, и не зря: в машине
+     * кнопка «назад» может не сработать вовсе, и тогда onPause() не наступит
+     * никогда — а вместе с ним пропадёт всё, ради чего ездили. Запись идёт в
+     * отдельном потоке: файл маленький, но тормозить отрисовку приборов
+     * из-за флешки нельзя.
+     */
+    private final Runnable saver = new Runnable() {
+        public void run() {
+            new Thread(new Runnable() {
+                public void run() {
+                    saveDiagnostics();
+                }
+            }, "q50-save").start();
+            handler.postDelayed(saver, SAVE_EVERY_MS);
+        }
+    };
+
+    /** Неизвестные коды клавиш пишем в лог: какие даёт это ГУ — неизвестно. */
+    /** Отчёт и архив на флешку. Зовётся и по таймеру, и на выходе. */
+    private void saveDiagnostics() {
         try {
             String path = DiagnosticReport.write(buildReport());
             if (path != null) {
@@ -107,8 +140,6 @@ public final class MainActivity extends Activity {
         } catch (Throwable t) {
             Log.w(TAG, "отчёт не записан: " + t);
         }
-        // Один архив, который пользователь привозит из машины: разбираться на
-        // месте, какой из четырёх файлов нужен, ему не придётся.
         try {
             String bt = ecuTek.getProbe() == null
                     ? "Зонд Bluetooth не отработал.\n" : ecuTek.getProbe().getReport();
@@ -121,6 +152,22 @@ public final class MainActivity extends Activity {
         } catch (Throwable t) {
             Log.w(TAG, "архив не записан: " + t);
         }
+    }
+
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        Log.i(TAG, "клавиша: код " + keyCode);
+        return super.onKeyDown(keyCode, event);
+    }
+
+    @Override
+    protected void onPause() {
+        handler.removeCallbacks(saver);
+        dashboard.stop();
+        hub.stop();
+        // На выходе — ещё раз, самым свежим состоянием. Основная запись идёт
+        // по таймеру: onPause() может не наступить вовсе.
+        saveDiagnostics();
         super.onPause();
     }
 

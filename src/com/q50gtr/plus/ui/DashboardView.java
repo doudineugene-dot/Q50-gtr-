@@ -44,6 +44,8 @@ public final class DashboardView extends View implements Runnable {
     /* Скрытый диагностический оверлей: по умолчанию выключен. */
     private VehicleProbe probe;
     private int diagPage;
+    /** Кого дёрнуть, когда нажали экранную стрелку «назад». */
+    private Runnable onExit;
     private long clockPressAtMs;
 
     private int page;
@@ -205,6 +207,14 @@ public final class DashboardView extends View implements Runnable {
 
     /* ------------------------------------------------------------------ */
 
+    public void setOnExit(Runnable r) {
+        onExit = r;
+    }
+
+    private boolean isOnBackArrow(Layout l, float x, float y) {
+        return y < l.topH && Math.abs(x - l.backCx()) < 28f * l.s;
+    }
+
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         Layout l = layout;
@@ -237,6 +247,17 @@ public final class DashboardView extends View implements Runnable {
 
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_CANCEL: {
+                // Стрелка «назад» нарисована с эталона, но до сих пор ничего
+                // не делала: на ГУ аппаратной кнопки «назад» может не быть, и
+                // выйти из приложения было нечем.
+                if (!dragging && isOnBackArrow(l, x, y)
+                        && isOnBackArrow(l, downX, downY)) {
+                    clockPressAtMs = 0L;
+                    if (onExit != null) {
+                        onExit.run();
+                    }
+                    return true;
+                }
                 // Долгое нажатие на часы листает диагностический оверлей:
                 // ВЫКЛ -> СОСТОЯНИЕ -> СЕНСОРЫ -> ВЫКЛ.
                 if (clockPressAtMs != 0L && isOnClock(l, x, y)

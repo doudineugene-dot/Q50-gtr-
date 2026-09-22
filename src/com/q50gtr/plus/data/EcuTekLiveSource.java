@@ -84,6 +84,13 @@ public final class EcuTekLiveSource implements EcuTekSource {
     private volatile long lastRxMs;
 
     private EcuTekBluetoothProbe probe;
+    /**
+     * Адаптер, снятый в ГЛАВНОМ потоке. На старых Android getDefaultAdapter()
+     * зависит от Looper вызывающего потока, поэтому спрашивать его только из
+     * фонового — ненадёжно, а именно так и был получен первый отрицательный
+     * ответ на машине.
+     */
+    private volatile BluetoothAdapter mainThreadAdapter;
     private Thread worker;
     private volatile boolean running;
     private BluetoothSocket socket;
@@ -150,6 +157,12 @@ public final class EcuTekLiveSource implements EcuTekSource {
             // предпросмотра, а не ошибка.
             return;
         }
+        // start() вызывается из главного потока — снимаем адаптер здесь.
+        try {
+            mainThreadAdapter = BluetoothAdapter.getDefaultAdapter();
+        } catch (Throwable t) {
+            Log.w(TAG, "getDefaultAdapter в главном потоке: " + t);
+        }
         running = true;
         worker = new Thread(new Runnable() {
             public void run() {
@@ -193,7 +206,7 @@ public final class EcuTekLiveSource implements EcuTekSource {
 
     private void loop() {
         probe = new EcuTekBluetoothProbe(context);
-        probe.probeAdapter();
+        probe.probeAdapter(mainThreadAdapter);
 
         int adapter = probe.getAdapterState();
         if (adapter == EcuTekBluetoothProbe.NO_ADAPTER) {
