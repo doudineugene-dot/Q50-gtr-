@@ -460,11 +460,36 @@ public final class EcuTekBluetoothProbe {
         } catch (Throwable t) {
             line("  getNetworkInterfaces: " + t);
         }
+        // Наличие класса WifiManager ничего не доказывает: он есть в любом
+        // образе Android. Доказывает железо — список сетевых устройств ядра
+        // и фактическое состояние адаптера.
         try {
             Object wifi = context.getSystemService("wifi");
             line("  getSystemService(\"wifi\") = " + (wifi == null ? "null" : "есть"));
+            if (wifi instanceof android.net.wifi.WifiManager) {
+                android.net.wifi.WifiManager wm = (android.net.wifi.WifiManager) wifi;
+                line("  WifiManager.isWifiEnabled = " + wm.isWifiEnabled());
+                line("  WifiManager.getWifiState = " + wm.getWifiState()
+                        + " (0 выкл-ся,1 выкл,2 вкл-ся,3 ВКЛ,4 ошибка)");
+            }
         } catch (Throwable t) {
-            line("  getSystemService(wifi): " + t);
+            line("  wifi: " + t);
+        }
+        // /sys/class/net — перечень сетевых устройств ядра, включая
+        // выключенные. Если wlan там нет, Wi-Fi-железа нет вовсе.
+        try {
+            java.io.File[] nets = new java.io.File("/sys/class/net").listFiles();
+            StringBuilder b = new StringBuilder("  /sys/class/net:");
+            if (nets == null || nets.length == 0) {
+                b.append(" пусто");
+            } else {
+                for (int i = 0; i < nets.length; i++) {
+                    b.append(' ').append(nets[i].getName());
+                }
+            }
+            line(b.toString());
+        } catch (Throwable t) {
+            line("  /sys/class/net: " + t);
         }
     }
 
