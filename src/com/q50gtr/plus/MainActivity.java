@@ -77,6 +77,7 @@ public final class MainActivity extends Activity {
         ecuTek = new EcuTekLiveSource(this, rawLog);
         hub = new DataHub(new InTouchVehicleSource(this), ecuTek,
                 new AirLiftLiveSource(), new DemoDataProvider());
+        com.q50gtr.plus.ui.DiagOverlay.setVersion(versionName());
         dashboard = new DashboardView(this, hub);
         dashboard.setProbe(probe);
         // MATCH_PARENT x MATCH_PARENT: никаких фиксированных размеров, вью

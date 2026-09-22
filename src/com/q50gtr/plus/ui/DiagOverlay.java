@@ -28,7 +28,8 @@ public final class DiagOverlay {
     public static final int STATUS = 1;
     public static final int SENSORS = 2;
     public static final int ECUTEK = 3;
-    public static final int PAGES = 4;
+    public static final int BLUETOOTH = 4;
+    public static final int PAGES = 5;
 
     /* Палитра оверлея: максимальный контраст, никакого «приглушённого». */
     private static final int FG = 0xFFFFFFFF;
@@ -42,10 +43,19 @@ public final class DiagOverlay {
     private DiagOverlay() {
     }
 
+    /** Версия сборки: без неё непонятно, что именно сейчас на устройстве. */
+    private static String version = "?";
+
+    public static void setVersion(String v) {
+        version = v == null ? "?" : v;
+    }
+
     public static void draw(Canvas c, Theme t, Layout l, DataHub hub,
                             VehicleProbe probe, DisplayInfo display, long nowMs,
                             int page) {
-        if (page == ECUTEK) {
+        if (page == BLUETOOTH) {
+            drawBluetooth(c, t, l, hub);
+        } else if (page == ECUTEK) {
             drawEcuTek(c, t, l, hub, nowMs);
         } else if (page == SENSORS) {
             drawSensors(c, t, l, hub, probe);
@@ -58,10 +68,11 @@ public final class DiagOverlay {
                                    VehicleProbe probe, DisplayInfo display, long nowMs) {
         VehicleData d = hub.getData();
 
-        String[] text = new String[24];
-        int[] colour = new int[24];
+        String[] text = new String[26];
+        int[] colour = new int[26];
         int n = 0;
 
+        colour[n] = KEY; text[n++] = "Q50 GTR+ " + version;
         if (display != null) {
             colour[n] = DIM; text[n++] = display.summary();
         }
@@ -276,6 +287,48 @@ public final class DiagOverlay {
             n = channel(text, colour, n, "KI" + (i + 1), d.knockIndex[i], nowMs);
         }
         panel(c, t, l, text, colour, n, 1);
+    }
+
+    /**
+     * Полный отчёт зонда Bluetooth прямо на экране.
+     *
+     * Он и раньше собирался, но уходил только в архив на флешке — а спор о
+     * том, есть ли на ГУ Bluetooth, решается именно этими строками. Со
+     * списком сенсоров сработало ровно это: показать на экране то, что иначе
+     * пришлось бы везти файлом.
+     */
+    private static void drawBluetooth(Canvas c, Theme t, Layout l, DataHub hub) {
+        String report = null;
+        if (hub.getEcuTek() instanceof EcuTekLiveSource) {
+            EcuTekLiveSource e = (EcuTekLiveSource) hub.getEcuTek();
+            if (e.getProbe() != null) {
+                report = e.getProbe().getReport();
+            }
+        }
+        if (report == null || report.length() == 0) {
+            String[] one = {"Зонд Bluetooth ещё не отработал"};
+            int[] col = {HOT};
+            panel(c, t, l, one, col, 1, 1);
+            return;
+        }
+        String[] raw = report.split("\n");
+        String[] text = new String[raw.length + 1];
+        int[] colour = new int[raw.length + 1];
+        int n = 0;
+        colour[n] = KEY; text[n++] = "ЗОНД BLUETOOTH";
+        for (int i = 0; i < raw.length && n < text.length; i++) {
+            String ln = raw[i];
+            if (ln == null || ln.trim().length() == 0) {
+                continue;
+            }
+            String low = ln.toLowerCase();
+            colour[n] = low.indexOf("нет") >= 0 || low.indexOf("null") >= 0
+                    || low.indexOf("= false") >= 0 ? HOT
+                    : (low.indexOf("важно") >= 0 ? OK
+                    : (ln.startsWith("--") ? KEY : FG));
+            text[n++] = ln;
+        }
+        panel(c, t, l, text, colour, n, n > 20 ? 2 : 1);
     }
 
     private static int channel(String[] text, int[] colour, int n,

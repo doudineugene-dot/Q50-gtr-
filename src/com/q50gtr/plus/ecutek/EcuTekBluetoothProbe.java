@@ -260,6 +260,13 @@ public final class EcuTekBluetoothProbe {
             }
         } catch (Throwable ignored) {
         }
+        // Реестр системных сервисов. Читается без root и отвечает прямо: есть
+        // ли в Android этого ГУ служба bluetooth вообще. Если её нет, а
+        // телефон при этом подключается — значит Bluetooth живёт на отдельном
+        // модуле, до которого Android-стороне не дотянуться.
+        exec("service list", "bluetooth");
+        exec("getprop", "bluetooth");
+
         try {
             java.util.List<android.content.pm.ApplicationInfo> apps =
                     context.getPackageManager().getInstalledApplications(0);
@@ -387,6 +394,36 @@ public final class EcuTekBluetoothProbe {
         } catch (Throwable ignored) {
         }
         return f;
+    }
+
+    /** Запускает команду и печатает строки, содержащие фильтр. Только чтение. */
+    private void exec(String cmd, String filter) {
+        java.io.BufferedReader r = null;
+        try {
+            Process p = Runtime.getRuntime().exec(cmd);
+            r = new java.io.BufferedReader(
+                    new java.io.InputStreamReader(p.getInputStream()), 4096);
+            String ln;
+            int hits = 0;
+            while ((ln = r.readLine()) != null && hits < 12) {
+                if (ln.toLowerCase().indexOf(filter) >= 0) {
+                    line("  [" + cmd + "] " + ln.trim());
+                    hits++;
+                }
+            }
+            if (hits == 0) {
+                line("  [" + cmd + "] совпадений с \"" + filter + "\" нет");
+            }
+        } catch (Throwable t) {
+            line("  [" + cmd + "] не выполнить: " + t);
+        } finally {
+            if (r != null) {
+                try {
+                    r.close();
+                } catch (Throwable ignored) {
+                }
+            }
+        }
     }
 
     private static String bondName(int s) {
