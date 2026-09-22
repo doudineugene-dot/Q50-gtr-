@@ -60,8 +60,12 @@ public final class DiagOverlay {
                             VehicleProbe probe, DisplayInfo display, long nowMs,
                             int page) {
         if (page == TRANSPORT) {
-            drawText(c, t, l, transport == null ? null : transport.getReport(),
-                    "РАЗВЕДКА ТРАНСПОРТОВ");
+            String head = "РАЗВЕДКА ТРАНСПОРТОВ";
+            if (transport != null && transport.getLoadResult() != null) {
+                head = head + "   |   insmod: " + transport.getLoadResult();
+            }
+            drawText(c, t, l, transport == null ? null : transport.getReport(), head);
+            drawButton(c, t, l, buttonLabel(TRANSPORT));
         } else if (page == BLUETOOTH) {
             drawBluetooth(c, t, l, hub);
         } else if (page == ECUTEK) {
@@ -452,14 +456,30 @@ public final class DiagOverlay {
         return x >= r[0] && x <= r[2] && y >= r[1] && y <= r[3];
     }
 
+    /** Есть ли на этой странице кнопка, и какая. null — кнопки нет. */
+    public static String buttonLabel(int page) {
+        if (page == BLUETOOTH) {
+            return "ПРОВЕРИТЬ BLUETOOTH  +  ЭКСПОРТ";
+        }
+        if (page == TRANSPORT) {
+            return transport != null && transport.isRndisLoaded()
+                    ? "RNDIS_HOST УЖЕ ЗАГРУЖЕН"
+                    : "ЗАГРУЗИТЬ RNDIS_HOST (root)";
+        }
+        return null;
+    }
+
     private static void drawButton(Canvas c, Theme t, Layout l) {
+        drawButton(c, t, l, "ПРОВЕРИТЬ BLUETOOTH  +  ЭКСПОРТ");
+    }
+
+    private static void drawButton(Canvas c, Theme t, Layout l, String label) {
         float[] r = new float[4];
         buttonRect(l, r);
         t.rect.set(r[0], r[1], r[2], r[3]);
         c.drawRoundRect(t.rect, 4f, 4f, t.fill(0xFF1D2B4A));
         c.drawRoundRect(t.rect, 4f, 4f, t.stroke(KEY, 1.5f));
-        c.drawText("ПРОВЕРИТЬ BLUETOOTH  +  ЭКСПОРТ",
-                (r[0] + r[2]) * 0.5f, r[3] - 11f * l.s,
+        c.drawText(label, (r[0] + r[2]) * 0.5f, r[3] - 11f * l.s,
                 t.text(FG, 14f * l.s, Paint.Align.CENTER, false));
     }
 

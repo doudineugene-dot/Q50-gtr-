@@ -48,6 +48,8 @@ public final class DashboardView extends View implements Runnable {
     private Runnable onExit;
     /** Кого дёрнуть по кнопке «Проверить Bluetooth». */
     private Runnable onCheckBluetooth;
+    /** Кого дёрнуть по кнопке загрузки драйвера RNDIS. */
+    private Runnable onLoadRndis;
     private long clockPressAtMs;
 
     private int page;
@@ -217,6 +219,10 @@ public final class DashboardView extends View implements Runnable {
         onCheckBluetooth = r;
     }
 
+    public void setOnLoadRndis(Runnable r) {
+        onLoadRndis = r;
+    }
+
     private boolean isOnBackArrow(Layout l, float x, float y) {
         return y < l.topH && Math.abs(x - l.backCx()) < 28f * l.s;
     }
@@ -256,24 +262,26 @@ public final class DashboardView extends View implements Runnable {
                 // Пока открыт диагностический оверлей, короткое касание его
                 // панели листает длинный отчёт, а не переключает вкладку:
                 // иначе до второй страницы текста не добраться.
+                boolean onButton = DiagOverlay.buttonLabel(diagPage) != null
+                        && DiagOverlay.hitButton(l, x, y)
+                        && DiagOverlay.hitButton(l, downX, downY);
                 if (!dragging && diagPage != DiagOverlay.OFF
                         && diagPage != DiagOverlay.STATUS
                         && DiagOverlay.hitPanel(l, y, y)
-                        && !(diagPage == DiagOverlay.BLUETOOTH
-                                && DiagOverlay.hitButton(l, x, y))) {
+                        && !onButton) {
                     clockPressAtMs = 0L;
                     DiagOverlay.nextTextPage(x > l.w * 0.5f ? 1 : -1);
                     invalidate();
                     return true;
                 }
-                // Кнопка на странице BLUETOOTH перехватывает касание раньше
-                // листания вкладок: она лежит поверх них.
-                if (!dragging && diagPage == DiagOverlay.BLUETOOTH
-                        && DiagOverlay.hitButton(l, x, y)
-                        && DiagOverlay.hitButton(l, downX, downY)) {
+                // Кнопки страниц перехватывают касание раньше листания
+                // вкладок: они лежат поверх них.
+                if (!dragging && onButton) {
                     clockPressAtMs = 0L;
-                    if (onCheckBluetooth != null) {
+                    if (diagPage == DiagOverlay.BLUETOOTH && onCheckBluetooth != null) {
                         onCheckBluetooth.run();
+                    } else if (diagPage == DiagOverlay.TRANSPORT && onLoadRndis != null) {
+                        onLoadRndis.run();
                     }
                     return true;
                 }

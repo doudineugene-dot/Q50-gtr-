@@ -128,6 +128,23 @@ public final class MainActivity extends Activity {
                 }, "q50-btcheck").start();
             }
         });
+        // Загрузка драйвера USB-модема. Только по явному нажатию кнопки на
+        // странице ТРАНСПОРТ — пользователь разрешил именно такой порядок.
+        dashboard.setOnLoadRndis(new Runnable() {
+            public void run() {
+                Log.i(TAG, "запрошена загрузка rndis_host");
+                new Thread(new Runnable() {
+                    public void run() {
+                        try {
+                            transport.loadRndis();
+                        } catch (Throwable t) {
+                            Log.w(TAG, "insmod упал: " + t);
+                        }
+                        saveDiagnostics();
+                    }
+                }, "q50-insmod").start();
+            }
+        });
         setContentView(dashboard);
 
         if (savedInstanceState != null) {

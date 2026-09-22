@@ -42,6 +42,9 @@ public final class TransportProbe {
     private String diskKey = "";
     private final java.util.List<String> hits = new java.util.ArrayList<String>();
     private final java.util.List<String> samples = new java.util.ArrayList<String>();
+    /** Полный путь к rndis_host.ko, если он нашёлся на диске. */
+    private volatile String rndisPath;
+    private volatile String loadResult;
 
     private static String canon(String p) {
         try {
@@ -78,6 +81,86 @@ public final class TransportProbe {
     /** Короткая сводка для экрана: один взгляд — один ответ. */
     public String getDiskKey() {
         return diskKey;
+    }
+
+    public String getRndisPath() {
+        return rndisPath;
+    }
+
+    public String getLoadResult() {
+        return loadResult;
+    }
+
+    public boolean isRndisLoaded() {
+        BufferedReader r = null;
+        try {
+            r = new BufferedReader(new FileReader("/proc/modules"), 4096);
+            String ln;
+            while ((ln = r.readLine()) != null) {
+                if (ln.startsWith("rndis_host")) {
+                    return true;
+                }
+            }
+        } catch (Throwable ignored) {
+        } finally {
+            close(r);
+        }
+        return false;
+    }
+
+    /**
+     * Поднимает драйвер rndis_host, которым ядро подхватывает телефон в
+     * режиме USB-модема. ТОЛЬКО ПО ЯВНОМУ НАЖАТИЮ — сам по себе этот метод
+     * не вызывается ниоткуда.
+     *
+     * Модуль штатный, из прошивки этого же ГУ, и привязывается только к
+     * USB-устройству телефона: штатных систем машины он не касается.
+     * Действие временное — после перезагрузки ГУ модуль выгрузится сам,
+     * потому что ничего на диске мы не меняем.
+     *
+     * Команда уходит в stdin процесса su, а не аргументом: так её понимают
+     * все известные реализации su, а разбор аргументов у них разный.
+     */
+    public String loadRndis() {
+        if (rndisPath == null) {
+            loadResult = "rndis_host.ko на диске не найден";
+            return loadResult;
+        }
+        if (isRndisLoaded()) {
+            loadResult = "rndis_host уже загружен";
+            return loadResult;
+        }
+        StringBuilder out = new StringBuilder();
+        try {
+            Process p = Runtime.getRuntime().exec("su");
+            java.io.OutputStream os = p.getOutputStream();
+            os.write(("insmod " + rndisPath + "\n").getBytes("UTF-8"));
+            os.write("exit\n".getBytes("UTF-8"));
+            os.flush();
+            BufferedReader r = new BufferedReader(
+                    new InputStreamReader(p.getInputStream()), 2048);
+            BufferedReader e = new BufferedReader(
+                    new InputStreamReader(p.getErrorStream()), 2048);
+            String ln;
+            while ((ln = r.readLine()) != null) {
+                out.append(ln).append(' ');
+            }
+            while ((ln = e.readLine()) != null) {
+                out.append(ln).append(' ');
+            }
+            p.waitFor();
+            close(r);
+            close(e);
+        } catch (Throwable t) {
+            loadResult = "insmod не выполнить: " + t;
+            Log.w(TAG, loadResult);
+            return loadResult;
+        }
+        boolean ok = isRndisLoaded();
+        loadResult = (ok ? "ЗАГРУЖЕН: " : "НЕ ЗАГРУЗИЛСЯ: ")
+                + (out.length() == 0 ? "(без сообщений)" : out.toString().trim());
+        Log.i(TAG, loadResult);
+        return loadResult;
     }
 
     public String summary() {
@@ -255,6 +338,9 @@ public final class TransportProbe {
                 // Полный путь, а не имя: по нему видно, куда вообще дотянулся
                 // обход, и не обрезан ли он снова.
                 hits.add(f[i].getPath());
+            }
+            if ("rndis_host".equals(bare)) {
+                rndisPath = f[i].getPath();
             }
         }
     }
