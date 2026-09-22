@@ -98,6 +98,21 @@ public final class DiagOverlay {
 
         colour[n] = 0; text[n++] = null;   // пустая строка
 
+        // Обороты восстанавливаются из мощности и момента, когда прямой
+        // сенсор молчит. Обе исходные величины показаны рядом, чтобы гипотезу
+        // можно было проверить прямо с фотографии, а не на слово.
+        String calc = "—";
+        if (d.enginePower.hasValue() && d.engineTorque.hasValue()
+                && d.engineTorque.getValue() >= 1f) {
+            calc = Channel.format(d.enginePower.getValue() / d.engineTorque.getValue(), 0);
+        }
+        colour[n] = KEY;
+        text[n++] = "POWER/TORQUE = " + d.enginePower.text(0) + " / "
+                + d.engineTorque.text(0) + " = " + calc + " rpm";
+        colour[n] = FG;
+        text[n++] = "GEAR: " + d.gearText() + "  (сырое " + d.gearPosition.text(0) + ")";
+        colour[n] = 0; text[n++] = null;
+
         n = channel(text, colour, n, "RPM", d.rpm, nowMs);
         n = channel(text, colour, n, "SPEED", d.speed, nowMs);
         n = channel(text, colour, n, "COOLANT", d.coolantTemp, nowMs);

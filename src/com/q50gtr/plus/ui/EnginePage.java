@@ -23,9 +23,9 @@ public final class EnginePage implements Page {
         OemDial.draw(c, t, l.dialCx(0), cy, r, d.rpm,
                 0f, 8000f, 0, 8, 1, 6300f, "RPM", "x1000", 1000f, 0, false, null,
                 rpmMotion.update(d.rpm, 0f, 8000f, now));
-        // Селектор передач отдельным каналом не приходит, поэтому в кружке
-        // прочерк, а не выдуманная передача.
-        OemDial.gearBadge(c, t, l.dialCx(0), cy, r, "—");
+        // Селектор передач приходит сенсором GEAR_POSITION (t22) числом:
+        // P=1, R=2, N=3, D=4, M1..M7=16..22. Пока канала нет — прочерк.
+        OemDial.gearBadge(c, t, l.dialCx(0), cy, r, d.gearText());
 
         OemDial.draw(c, t, l.dialCx(1), cy, r, d.boostActual,
                 -1f, 2f, 2, 6, 1, 1.8f, "BOOST", "bar", 1f, 1, false, null,

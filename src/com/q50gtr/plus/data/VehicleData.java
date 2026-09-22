@@ -13,6 +13,17 @@ public final class VehicleData {
 
     /* --- engine ------------------------------------------------------- */
     public final Channel rpm = new Channel("rpm", "RPM", "");
+    /*
+     * Момент и мощность нужны не для показа, а для восстановления оборотов.
+     * На этой машине сенсор ENGINE_RPM (t13) на стоянке отдаёт ноль при
+     * работающем моторе, а ENGINE_POWER (t32) при этом равен произведению
+     * оборотов на момент: 5963 = 663 x 9 при холостых и 9 Нм. См.
+     * docs/INTOUCH-VEHICLE-API-RESEARCH.md.
+     */
+    public final Channel engineTorque = new Channel("torque", "МОМЕНТ", "Nm");
+    public final Channel enginePower = new Channel("power_raw", "МОЩН. СЫРАЯ", "");
+    /** Селектор передач как число: P=1, R=2, N=3, D=4, M1..M7=16..22. */
+    public final Channel gearPosition = new Channel("gear", "ПЕРЕДАЧА", "");
     public final Channel boostActual = new Channel("boost_actual", "BOOST ACT", "bar");
     public final Channel boostTarget = new Channel("boost_target", "BOOST TGT", "bar");
     public final Channel coolantTemp = new Channel("coolant_temp", "ОХЛ. ЖИДКОСТЬ", "°C");
@@ -76,6 +87,34 @@ public final class VehicleData {
     }
 
     /** Highest knock index across cylinders 1..6, or null when none is known. */
+    /**
+     * Селектор передач словом. Перечисление снято на автомобиле проектом
+     * qazwsd147/appgarage-dash и сходится с наблюдением: на стоянке в Park
+     * сенсор отдавал ровно 1.
+     */
+    public String gearText() {
+        if (!gearPosition.hasValue()) {
+            return "—";
+        }
+        int g = (int) (gearPosition.getValue() + 0.5f);
+        if (g == 1) {
+            return "P";
+        }
+        if (g == 2) {
+            return "R";
+        }
+        if (g == 3) {
+            return "N";
+        }
+        if (g == 4) {
+            return "D";
+        }
+        if (g >= 16 && g <= 22) {
+            return "M" + (g - 15);
+        }
+        return "—";
+    }
+
     public Channel maxKnockIndexChannel() {
         Channel best = null;
         for (int i = 0; i < knockIndex.length; i++) {

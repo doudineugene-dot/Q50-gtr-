@@ -285,6 +285,8 @@ public final class InTouchVehicleSource implements DataSource, SensorEventListen
             }
             pendingSet[i] = false;
         }
+        deriveRpm(d, nowMs);
+
         // Значение, которое перестало приходить, не должно и дальше выглядеть
         // актуальным: таймаут свой у каждого сигнала.
         for (int i = 0; i < boundSignal.length; i++) {
@@ -294,5 +296,41 @@ public final class InTouchVehicleSource implements DataSource, SensorEventListen
                 c.ageOut(nowMs, sig.staleAfterMs);
             }
         }
+    }
+
+    /**
+     * Обороты, когда штатный сенсор их не отдаёт.
+     *
+     * Замер с этой машины на холостых в Park: ENGINE_RPM (t13) = 0.000 при
+     * работающем моторе, EFFECTIVE_TORQUE (t12) = 9.000,
+     * ENGINE_POWER (t32) = 5963. Отношение 5963 / 9 = 662.6 — ровно холостые
+     * прогретого VR30DDTT. То есть t32 хранит произведение оборотов на
+     * момент, и обороты из него восстанавливаются делением. Независимо к
+     * тому же выводу пришёл открытый проект qazwsd147/appgarage-dash,
+     * калибровавшийся на таком же VR30DDTT.
+     *
+     * Приоритет у прямого сенсора: если t13 отдал ненулевое значение, берём
+     * его. Расчёт — только когда прямого нет. При нулевом или отрицательном
+     * моменте (принудительный холостой ход, торможение двигателем) деление
+     * бессмысленно, и тогда обороты просто не обновляются: лучше устаревшее
+     * значение, чем выдуманное.
+     */
+    private void deriveRpm(VehicleData d, long nowMs) {
+        if (d.rpm.hasValue() && d.rpm.getValue() > 0f) {
+            return;
+        }
+        if (!d.enginePower.hasValue() || !d.engineTorque.hasValue()) {
+            return;
+        }
+        float torque = d.engineTorque.getValue();
+        float power = d.enginePower.getValue();
+        if (torque < 1f || power <= 0f) {
+            return;
+        }
+        float rpm = power / torque;
+        if (rpm < 0f || rpm > 9000f) {
+            return;   // за пределами шкалы — считаем замер негодным
+        }
+        d.rpm.setLive(rpm, NAME + "/CALC", nowMs);
     }
 }

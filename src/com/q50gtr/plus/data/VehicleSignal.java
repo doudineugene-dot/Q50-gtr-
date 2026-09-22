@@ -67,6 +67,15 @@ public final class VehicleSignal {
         if ("VS_ID_ENGINE_RPM".equals(vsId)) {
             return d.rpm;
         }
+        if ("VS_ID_EFFECTIVE_TORQUE".equals(vsId)) {
+            return d.engineTorque;
+        }
+        if ("VS_ID_ENGINE_POWER".equals(vsId)) {
+            return d.enginePower;
+        }
+        if ("VS_ID_GEAR_POSITION".equals(vsId)) {
+            return d.gearPosition;
+        }
         if ("VS_ID_VEHICLE_SPEED".equals(vsId)) {
             return d.speed;
         }
@@ -115,6 +124,11 @@ public final class VehicleSignal {
             // Множитель взят из открытого qazwsd147/appgarage-dash и требует
             // проверки на заведённом моторе.
             medium("VS_ID_ENGINE_OIL_PRESSURE", 10f, CONFIRMED),
+
+            // Сняты с сырого среза этой машины (типы 12, 32, 22), не подобраны.
+            fast("VS_ID_EFFECTIVE_TORQUE", 1f, CONFIRMED),
+            fast("VS_ID_ENGINE_POWER", 1f, CONFIRMED),
+            medium("VS_ID_GEAR_POSITION", 1f, CONFIRMED),
 
             // --- имена предположительные, свяжутся только если сенсор есть ---
             fast("VS_ID_THROTTLE_POSITION", 1f, CANDIDATE),
