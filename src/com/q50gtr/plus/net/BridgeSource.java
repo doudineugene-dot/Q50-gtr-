@@ -208,8 +208,11 @@ public final class BridgeSource implements DataSource {
                 // Состояние впереди: без него счётчики обманывают. На машине
                 // было RX 4 при TX 0 — кадры шли, а ядро не отвечало даже на
                 // ARP, потому что интерфейс был опущен.
+                long rx = parseCounter(f[1]);
+                sampleRx(rx);
                 return (com.q50gtr.plus.diag.TransportProbe.isIfaceUp(name) ? "UP" : "DOWN")
-                        + "  RX " + f[1] + " пак / " + f[0] + " байт   TX " + f[9] + " пак";
+                        + "  RX " + f[1] + " пак (" + rxGrowth() + ") / " + f[0]
+                        + " байт   TX " + f[9] + " пак";
             }
             return "интерфейса нет";
         } catch (Throwable t) {
@@ -330,6 +333,79 @@ public final class BridgeSource implements DataSource {
 
     private volatile String txResult;
 
+    /*
+     * Маяк: раз в секунду широковещательный пакет со своим адресом.
+     *
+     * Он проверяет обратное направление и не требует от человека ничего
+     * набирать. Если телефон, слушая порт 45455, видит маяк — провод исправен
+     * в обе стороны, и остаётся только понять, куда уходят его собственные
+     * пакеты. Если не видит — связи нет и в ту сторону, а значит дело не в
+     * приложении на телефоне.
+     *
+     * Содержимое — собственный адрес ГУ. Тот же пакет позже избавит от
+     * ручного ввода: приложению-мосту останется услышать маяк и ответить.
+     */
+    private volatile boolean beacon;
+    private Thread beaconThread;
+
+    public boolean isBeaconOn() {
+        return beacon;
+    }
+
+    public String getBeaconState() {
+        return beacon ? "ВКЛ — раз в секунду широковещательно" : "ВЫКЛ";
+    }
+
+    public void toggleBeacon() {
+        if (beacon) {
+            beacon = false;
+            beaconThread = null;
+            return;
+        }
+        beacon = true;
+        beaconThread = new Thread(new Runnable() {
+            public void run() {
+                DatagramSocket s = null;
+                try {
+                    s = new DatagramSocket();
+                    s.setBroadcast(true);
+                    while (beacon) {
+                        String me = com.q50gtr.plus.diag.TransportProbe
+                                .ifaceAddress("usb0");
+                        String[] t = probeTargets();
+                        byte[] msg = ("Q50GTR BEACON " + (me == null ? "?" : me)
+                                + " PORT " + PORT + "\n").getBytes("UTF-8");
+                        for (int i = 0; i < t.length; i++) {
+                            int sp = t[i].indexOf(' ');
+                            if (!t[i].startsWith("шир")) {
+                                continue;
+                            }
+                            try {
+                                s.send(new DatagramPacket(msg, msg.length,
+                                        InetAddress.getByName(t[i].substring(sp + 1)),
+                                        PORT));
+                            } catch (Throwable ignored) {
+                            }
+                        }
+                        Thread.sleep(1000L);
+                    }
+                } catch (Throwable t) {
+                    Log.w(TAG, "маяк остановлен: " + t);
+                } finally {
+                    beacon = false;
+                    if (s != null) {
+                        try {
+                            s.close();
+                        } catch (Throwable ignored) {
+                        }
+                    }
+                }
+            }
+        }, "q50-beacon");
+        beaconThread.setDaemon(true);
+        beaconThread.start();
+    }
+
     /** Последний результат пробы передачи, для диагностического экрана. */
     public String getTxResult() {
         return txResult == null ? "не запускалась" : txResult;
@@ -365,6 +441,54 @@ public final class BridgeSource implements DataSource {
                 } catch (Throwable ignored) {
                 }
             }
+        }
+    }
+
+    /*
+     * Прирост принятых кадров за последние секунды.
+     *
+     * Снимок счётчика на фотографии не отвечает на главный вопрос: растёт он
+     * или стоит. А именно этим различаются две оставшиеся причины, по которым
+     * пакет с телефона не доходит. Растёт — кадры до ГУ долетают и гибнут
+     * выше, в фильтре или сокете. Стоит — до провода не доходит ничего, и
+     * телефон отправляет их куда-то мимо (например, в Wi-Fi, если тот остался
+     * сетью по умолчанию). Поэтому счётчик запоминается с отметкой времени, а
+     * на экран идёт разница.
+     */
+    private volatile long rxSampleVal = -1L;
+    private volatile long rxSampleAtMs;
+    private volatile long rxDelta;
+    private volatile long rxDeltaSecs;
+
+    private void sampleRx(long rx) {
+        long now = System.currentTimeMillis();
+        if (rxSampleVal < 0) {
+            rxSampleVal = rx;
+            rxSampleAtMs = now;
+            return;
+        }
+        long dt = now - rxSampleAtMs;
+        if (dt < 10000L) {
+            return;
+        }
+        rxDelta = rx - rxSampleVal;
+        rxDeltaSecs = dt / 1000L;
+        rxSampleVal = rx;
+        rxSampleAtMs = now;
+    }
+
+    private String rxGrowth() {
+        if (rxDeltaSecs == 0) {
+            return "счёт идёт";
+        }
+        return (rxDelta > 0 ? "+" : "") + rxDelta + " за " + rxDeltaSecs + "с";
+    }
+
+    private static long parseCounter(String s) {
+        try {
+            return Long.parseLong(s.trim());
+        } catch (Throwable t) {
+            return 0L;
         }
     }
 

@@ -138,7 +138,9 @@ public final class MainActivity extends Activity {
                                 transport.dhcpUsb0();
                                 bridge.txTest();
                             } else {
-                                bridge.txTest();
+                                // Всё с нашей стороны доказано. Остаётся
+                                // проверить обратный путь маяком.
+                                bridge.toggleBeacon();
                             }
                         } catch (Throwable t) {
                             Log.w(TAG, "настройка транспорта упала: " + t);

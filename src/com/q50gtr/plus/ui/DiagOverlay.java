@@ -133,6 +133,8 @@ public final class DiagOverlay {
         text[n++] = "ПЕРЕДАЧА: " + b.getTxResult();
         colour[n] = DIM;
         text[n++] = "DHCP: " + (transport == null ? "-" : transport.getDhcpResult());
+        colour[n] = b.isBeaconOn() ? OK : DIM;
+        text[n++] = "МАЯК: " + b.getBeaconState();
         colour[n] = b.getPacketCount() > 0 ? OK : DIM;
         text[n++] = "ТЕСТ: " + b.getTestInfo();
         colour[n] = DIM;
@@ -439,6 +441,12 @@ public final class DiagOverlay {
             }
             if (bridge == null || !bridge.isTxTried()) {
                 return "4. ПРОБА ПЕРЕДАЧИ  (usb0 = " + a + ")";
+            }
+            // Телефон отвечает, передача идёт, а его пакетов всё нет. Дальше
+            // проверяем обратную сторону: пусть телефон послушает маяк.
+            if (com.q50gtr.plus.diag.TransportProbe.isPhoneAnswering()) {
+                return bridge.isBeaconOn()
+                        ? "ВЫКЛЮЧИТЬ МАЯК" : "ВКЛЮЧИТЬ МАЯК  (слушайте 45455)";
             }
             // Проба прошла, а телефон на ARP так и не ответил. Дальше гадать
             // нечего: спросим адрес у него самого. DHCP-сервер раздачи обязан
