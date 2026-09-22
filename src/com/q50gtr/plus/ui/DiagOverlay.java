@@ -105,8 +105,19 @@ public final class DiagOverlay {
         text[n++] = "ПРИЁМ: UDP " + com.q50gtr.plus.net.BridgeSource.PORT
                 + "  пакетов=" + b.getPacketCount()
                 + (b.getLastSender() == null ? "" : "  от " + b.getLastSender());
+        // Единственная строка, которую надо переписать в телефон. Адрес
+        // теперь выдаёт сам телефон по DHCP и он каждый раз другой, так что
+        // назвать его заранее в инструкции нельзя — только показать здесь.
+        String me = com.q50gtr.plus.diag.TransportProbe.ifaceAddress("usb0");
+        colour[n] = me == null ? ERR : OK;
+        text[n++] = "СЛАТЬ С ТЕЛЕФОНА НА: "
+                + (me == null ? "адреса нет" : me + " : "
+                        + com.q50gtr.plus.net.BridgeSource.PORT);
         colour[n] = FG;
-        text[n++] = "АДРЕС ГУ: " + b.getLocalAddresses();
+        text[n++] = "АДРЕС ГУ: " + b.getLocalAddresses()
+                + "   телефон: "
+                + (com.q50gtr.plus.diag.TransportProbe.gatewayFor("usb0") == null
+                        ? "?" : com.q50gtr.plus.diag.TransportProbe.gatewayFor("usb0"));
         colour[n] = FG;
         text[n++] = "usb0: " + b.getIfaceCounters("usb0");
         colour[n] = FG;

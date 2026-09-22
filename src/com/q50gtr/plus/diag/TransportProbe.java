@@ -312,6 +312,22 @@ public final class TransportProbe {
                     + "  " + linkDetails("usb0");
             return loadResult;
         }
+        // Сначала DHCP, и только потом статика. Порядок изменён по факту:
+        // статический 192.168.42.2 держался на предположении «Android при
+        // раздаче занимает 192.168.42.129», а телефон на машине раздал
+        // 10.174.142.0/24 со шлюзом .156 — и всё, что мы слали, уходило в
+        // чужую подсеть. DHCP же назвал и адрес, и шлюз с первого раза.
+        // Статика остаётся запасным вариантом: если DHCP-клиента в прошивке
+        // не окажется, лучше спорный адрес, чем никакого.
+        dhcpUsb0();
+        if (ifaceAddress("usb0") != null && isIfaceUp("usb0")) {
+            loadResult = "usb0 ГОТОВ по DHCP: " + ifaceAddress("usb0")
+                    + " шлюз=" + gatewayFor("usb0")
+                    + "  " + linkDetails("usb0");
+            Log.i(TAG, loadResult);
+            return loadResult;
+        }
+
         // Поднимать интерфейс НУЖНО ОТДЕЛЬНОЙ командой. Прошлый вариант
         // задавал адрес и «up» одной строкой, toolbox съел адрес и
         // проигнорировал флаг: на машине это дало usb0 с адресом, но в
@@ -367,6 +383,35 @@ public final class TransportProbe {
             close(r);
         }
         return false;
+    }
+
+    /**
+     * Шлюз на интерфейсе — то есть адрес самого телефона.
+     *
+     * Гадать его больше не нужно: DHCP на машине выдал ГУ 10.174.142.12 в
+     * подсети 10.174.142.0/24 со шлюзом .156, а вовсе не 192.168.42.x,
+     * который я предполагал по «Android обычно берёт .129». Раз подсеть
+     * приходит от телефона, то и адрес телефона берём оттуда же.
+     */
+    public static String gatewayFor(String iface) {
+        BufferedReader r = null;
+        try {
+            r = new BufferedReader(new FileReader("/proc/net/route"), 4096);
+            String ln = r.readLine();
+            while ((ln = r.readLine()) != null) {
+                String[] f = ln.trim().split("\\s+");
+                if (f.length < 3 || !iface.equals(f[0])) {
+                    continue;
+                }
+                if (!"00000000".equalsIgnoreCase(f[2])) {
+                    return hexIp(f[2]);
+                }
+            }
+        } catch (Throwable ignored) {
+        } finally {
+            close(r);
+        }
+        return null;
     }
 
     private volatile String dhcpResult;

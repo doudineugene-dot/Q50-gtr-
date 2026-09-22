@@ -241,7 +241,7 @@ public final class BridgeSource implements DataSource {
     public String txTest() {
         StringBuilder b = new StringBuilder();
         long before = txPackets("usb0");
-        String[] targets = {PHONE_IP, BROADCAST_IP, com.q50gtr.plus.diag.TransportProbe.USB0_IP};
+        String[] targets = probeTargets();
         DatagramSocket s = null;
         try {
             s = new DatagramSocket();
@@ -251,10 +251,15 @@ public final class BridgeSource implements DataSource {
                 if (b.length() > 0) {
                     b.append("  ");
                 }
-                b.append(shortIp(targets[i])).append('=');
+                // Метка роли, а не октет: адреса теперь приходят от телефона
+                // и могут быть любыми, а «телефон» и «шир» читаются всегда.
+                int sp = targets[i].indexOf(' ');
+                String label = targets[i].substring(0, sp);
+                String ip = targets[i].substring(sp + 1);
+                b.append(label).append('=');
                 try {
                     s.send(new DatagramPacket(msg, msg.length,
-                            InetAddress.getByName(targets[i]), PORT));
+                            InetAddress.getByName(ip), PORT));
                     b.append("ушёл");
                 } catch (Throwable t) {
                     // Текст важен целиком: ENETUNREACH и EACCES означают
@@ -281,10 +286,47 @@ public final class BridgeSource implements DataSource {
         return r;
     }
 
-    /** Телефон при раздаче по USB занимает .129 — это адрес шлюза. */
-    public static final String PHONE_IP = "192.168.42.129";
-    /** Широковещательный адрес подсети: доходит и без знания адреса телефона. */
-    public static final String BROADCAST_IP = "192.168.42.255";
+    /**
+     * Куда стучаться пробой. Адреса не зашиты: на машине телефон раздал
+     * 10.174.142.0/24, а не 192.168.42.0/24, который я предполагал, и проба
+     * всё это время била мимо. Теперь и шлюз, и широковещательный адрес
+     * берутся из того, что ядру выдал сам телефон.
+     */
+    private String[] probeTargets() {
+        java.util.ArrayList<String> t = new java.util.ArrayList<String>(3);
+        String gw = com.q50gtr.plus.diag.TransportProbe.gatewayFor("usb0");
+        if (gw != null) {
+            t.add("телефон " + gw);
+        }
+        String self = null;
+        try {
+            NetworkInterface ni = NetworkInterface.getByName("usb0");
+            if (ni != null) {
+                java.util.List<java.net.InterfaceAddress> as = ni.getInterfaceAddresses();
+                for (int i = 0; as != null && i < as.size(); i++) {
+                    java.net.InterfaceAddress ia = as.get(i);
+                    if (ia.getAddress() == null
+                            || ia.getAddress().getHostAddress().indexOf(':') >= 0) {
+                        continue;
+                    }
+                    self = ia.getAddress().getHostAddress();
+                    if (ia.getBroadcast() != null) {
+                        t.add("шир " + ia.getBroadcast().getHostAddress());
+                    }
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        if (self != null) {
+            t.add("сам " + self);
+        }
+        if (t.isEmpty()) {
+            // Совсем без адресов проба бессмысленна, но молчать хуже:
+            // пусть отчёт покажет отказ на заведомом адресе, чем пустоту.
+            t.add("шир 255.255.255.255");
+        }
+        return (String[]) t.toArray(new String[t.size()]);
+    }
 
     private volatile String txResult;
 
@@ -296,12 +338,6 @@ public final class BridgeSource implements DataSource {
     /** Запускалась ли проба передачи в этом запуске. */
     public boolean isTxTried() {
         return txResult != null;
-    }
-
-    /** Короткая форма адреса: на экране 800x480 место на счету. */
-    private static String shortIp(String ip) {
-        int d = ip.lastIndexOf('.');
-        return d < 0 ? ip : ip.substring(d);
     }
 
     /** Причина отказа без пакета и стека: на экране важна суть. */
