@@ -178,6 +178,45 @@ public final class BridgeSource implements DataSource {
         }
     }
 
+    /**
+     * Счётчики интерфейса из /proc/net/dev. Это главный разделитель причин.
+     *
+     * Если RX растёт, а пакетов у нас ноль — кадры доходят до интерфейса, и
+     * теряются выше: сокет, порт, фильтр. Если RX стоит на нуле — до ГУ не
+     * долетает ничего, и разбираться надо на стороне телефона: маршрут,
+     * адрес, включённая раздача. Без этой строки обе причины выглядят
+     * одинаково, и их можно перебирать бесконечно.
+     */
+    public String getIfaceCounters(String name) {
+        java.io.BufferedReader r = null;
+        try {
+            r = new java.io.BufferedReader(new java.io.FileReader("/proc/net/dev"), 4096);
+            String ln;
+            while ((ln = r.readLine()) != null) {
+                int c = ln.indexOf(':');
+                if (c < 0 || !ln.substring(0, c).trim().equals(name)) {
+                    continue;
+                }
+                String[] f = ln.substring(c + 1).trim().split("\\s+");
+                if (f.length < 10) {
+                    return "строка не разобрана";
+                }
+                // 0 байт, 1 пакетов на приём; 8 байт, 9 пакетов на передачу.
+                return "RX " + f[1] + " пак / " + f[0] + " байт   TX " + f[9] + " пак";
+            }
+            return "интерфейса нет";
+        } catch (Throwable t) {
+            return "не прочитать";
+        } finally {
+            if (r != null) {
+                try {
+                    r.close();
+                } catch (Throwable ignored) {
+                }
+            }
+        }
+    }
+
     /** Адреса, на которые можно слать: их и надо вбить в телефоне. */
     public String getLocalAddresses() {
         StringBuilder b = new StringBuilder();

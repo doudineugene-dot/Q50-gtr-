@@ -133,6 +133,8 @@ public final class DiagOverlay {
             text[n++] = "ИНТЕРФЕЙСЫ: " + b.getKernelInterfaces();
             colour[n] = FG;
             text[n++] = "USB: " + b.getUsbDevices();
+            colour[n] = FG;
+            text[n++] = "usb0: " + b.getIfaceCounters("usb0");
             colour[n] = b.getPacketCount() > 0 ? OK : DIM;
             text[n++] = "ТЕСТ: " + b.getTestInfo();
             if (transport != null && transport.getReport().length() > 0) {

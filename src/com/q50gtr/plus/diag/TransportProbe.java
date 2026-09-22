@@ -582,6 +582,12 @@ public final class TransportProbe {
         }
         line(b.toString());
         cat("/proc/net/dev", 8, "  dev: ");
+        // Загружены iptable_nat и nf_nat — значит фильтр в системе есть.
+        // Правило DROP на входе выглядело бы точно так же, как потерянный
+        // маршрут, поэтому таблицу стоит увидеть.
+        if (rootWorks) {
+            exec("su -c iptables -L INPUT -n", 10, null, "  iptables: ");
+        }
     }
 
     /**
