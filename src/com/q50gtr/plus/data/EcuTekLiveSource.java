@@ -271,9 +271,9 @@ public final class EcuTekLiveSource implements EcuTekSource {
                         + "запускался, чтобы не мешать штатной телефонии — "
                         + "нажмите «ПРОВЕРИТЬ BLUETOOTH»");
             } else {
-                fail(ERROR, "EVI не найден: ни среди сопряжённых, ни в эфире. "
-                        + "Либо адаптер в исполнении BTLE (Android 2.3 его не видит), "
-                        + "либо он вне зоны или спит");
+                fail(ERROR, "EVI не найден. Для EVI-6087 это ожидаемо: адаптер "
+                        + "в исполнении BLE, а классический поиск BLE не видит. "
+                        + "См. docs/ECUTEK-EVI-6087.md");
             }
             return;
         }
