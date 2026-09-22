@@ -125,6 +125,8 @@ public final class DiagOverlay {
                     + (b.getLastSender() == null ? "" : "  от " + b.getLastSender());
             colour[n] = DIM;
             text[n++] = "АДРЕС ГУ: " + b.getLocalAddresses();
+            colour[n] = DIM;
+            text[n++] = "ИНТЕРФЕЙСЫ: " + b.getKernelInterfaces();
             colour[n] = b.getPacketCount() > 0 ? OK : DIM;
             text[n++] = "ТЕСТ: " + b.getTestInfo();
             if (transport != null && transport.getReport().length() > 0) {

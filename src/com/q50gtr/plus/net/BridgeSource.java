@@ -101,6 +101,30 @@ public final class BridgeSource implements DataSource {
                 + (testLatencyMs == Long.MIN_VALUE ? "" : "  сдвиг=" + testLatencyMs + "ms");
     }
 
+    /**
+     * Перечень сетевых устройств ядра прямо сейчас. Обновляется на каждом
+     * кадре: если воткнуть в ГУ телефон в режиме USB-модема, здесь должен
+     * появиться новый интерфейс — и это видно сразу, без перезапуска.
+     */
+    public String getKernelInterfaces() {
+        try {
+            java.io.File[] n = new java.io.File("/sys/class/net").listFiles();
+            if (n == null || n.length == 0) {
+                return "пусто";
+            }
+            StringBuilder b = new StringBuilder();
+            for (int i = 0; i < n.length; i++) {
+                if (b.length() > 0) {
+                    b.append(' ');
+                }
+                b.append(n[i].getName());
+            }
+            return b.toString();
+        } catch (Throwable t) {
+            return "не прочитать";
+        }
+    }
+
     /** Адреса, на которые можно слать: их и надо вбить в телефоне. */
     public String getLocalAddresses() {
         StringBuilder b = new StringBuilder();

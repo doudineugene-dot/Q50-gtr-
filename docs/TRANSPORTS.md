@@ -1,5 +1,30 @@
 # Четыре пути телефон → ГУ: что доказано, что нет
 
+> **Обновлено после глубокой разведки. Картина изменилась.**
+>
+> ```
+> Bluetooth: Core ver 2.15
+> Bluetooth: HCI device and connection manager initialized
+> Bluetooth: HCI socket layer initialized
+> модули: bnep, cdc_ether, cdc_acm, usbserial, usb_wwan, option
+> su -c id -> uid=0(root) groups=...,net_bt_admin,net_bt,inet
+> /sys/class/bluetooth ПУСТ -> HCI-контроллеров нет
+> usb6: ehci_hcd EHCI Host Controller
+> 3-2: TEPCO UQUEST MatrixQuestUsb func ECM
+> /dev/bus/usb ЕСТЬ (usbfs)
+> службы: android.hardware.usb.IUsbManager, android.net.ethernet.IEthernetManager
+> ```
+>
+> Ядро **умеет** Bluetooth: стек поднят, HCI-сокеты работают, BNEP
+> загружен. Не хватает только контроллера — он на соседнем модуле.
+>
+> USB-host работает, usbfs на месте, и `audio0` оказался **USB-устройством
+> CDC-ECM**: ГУ уже сейчас гоняет Ethernet поверх USB к соседнему блоку.
+> Драйвер `cdc_ether` загружен, служба `IEthernetManager` зарегистрирована,
+> root даёт uid=0.
+>
+> Это переводит путь C из «почти закрыт» в **самый вероятный**.
+
 Сводка по состоянию на текущий замер. Колонка «доказано» означает
 «снято на самом устройстве», а не «следует из документации».
 

@@ -81,6 +81,7 @@ public final class TransportProbe {
         usbCheck();
         netCheck();
         serviceCheck();
+        classCheck();
         ttyCheck();
         line("== КОНЕЦ ==");
     }
@@ -91,7 +92,84 @@ public final class TransportProbe {
         line("  " + (v == null ? "/proc/version не прочитать" : v));
         int mods = countLines("/proc/modules");
         line("  загружаемых модулей: " + (mods < 0 ? "/proc/modules не прочитать" : "" + mods));
-        cat("/proc/modules", 12, "  модуль: ");
+        // ВСЕ модули, а не первые двенадцать. Прошлый замер обрезал список,
+        // и именно в отрезанной части могли лежать btusb и rndis_host —
+        // ровно те, от которых зависит, оживёт ли USB-путь.
+        modules();
+    }
+
+    /**
+     * Перечисляет модули одними именами, по нескольку в строке: полный
+     * список из 34 штук в столбик не влезает на экран, а важны в нём только
+     * имена. Отдельно выделяются те, что решают судьбу транспортов.
+     */
+    private void modules() {
+        BufferedReader r = null;
+        StringBuilder b = new StringBuilder("  ");
+        StringBuilder key = new StringBuilder();
+        try {
+            r = new BufferedReader(new FileReader("/proc/modules"), 4096);
+            String ln;
+            int perLine = 0;
+            while ((ln = r.readLine()) != null) {
+                int sp = ln.indexOf(' ');
+                String name = sp > 0 ? ln.substring(0, sp) : ln;
+                b.append(name).append(' ');
+                if (isKeyModule(name)) {
+                    key.append(name).append(' ');
+                }
+                if (++perLine >= 6) {
+                    line(b.toString());
+                    b = new StringBuilder("  ");
+                    perLine = 0;
+                }
+            }
+            if (b.length() > 2) {
+                line(b.toString());
+            }
+        } catch (Throwable t) {
+            line("  /proc/modules не прочитать");
+        } finally {
+            close(r);
+        }
+        line("  РЕШАЮЩИЕ: " + (key.length() == 0
+                ? "btusb/rndis_host/usbnet/cdc_* НЕ НАЙДЕНЫ" : key.toString().trim()));
+    }
+
+    /** Модули, от которых зависят пути USB и внешнего BLE-адаптера. */
+    private static boolean isKeyModule(String n) {
+        return "btusb".equals(n) || "rndis_host".equals(n) || "usbnet".equals(n)
+                || "cdc_ether".equals(n) || "cdc_ncm".equals(n) || "cdc_acm".equals(n)
+                || "hci_uart".equals(n) || "bluetooth".equals(n) || "bnep".equals(n)
+                || "usbserial".equals(n) || "rndis_wlan".equals(n);
+    }
+
+    /**
+     * Есть ли в этой прошивке классы USB и Ethernet. Службы в реестре
+     * найдены (IUsbManager, IEthernetManager), но штатный USB Host API
+     * появился только в API 12 — а это вендорская сборка, и она вполне могла
+     * принести классы с собой. Проверяется рефлексией, потому что
+     * скомпилировать обращение к ним под API 10 нечем.
+     */
+    private void classCheck() {
+        line("-- классы за пределами API 10 --");
+        String[] names = {
+                "android.hardware.usb.UsbManager",
+                "android.hardware.usb.UsbDevice",
+                "android.hardware.usb.UsbDeviceConnection",
+                "android.net.ethernet.EthernetManager",
+                "android.bluetooth.BluetoothAdapter",
+        };
+        for (int i = 0; i < names.length; i++) {
+            boolean ok;
+            try {
+                Class.forName(names[i]);
+                ok = true;
+            } catch (Throwable t) {
+                ok = false;
+            }
+            line("  " + names[i] + " -> " + (ok ? "ЕСТЬ" : "нет"));
+        }
     }
 
     /**
@@ -197,7 +275,7 @@ public final class TransportProbe {
             }
         }
         line(b.toString());
-        cat("/proc/net/route", 6, "  route: ");
+        cat("/proc/net/dev", 8, "  dev: ");
     }
 
     /**
