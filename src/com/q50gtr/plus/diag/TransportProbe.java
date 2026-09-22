@@ -342,6 +342,75 @@ public final class TransportProbe {
         return loadResult;
     }
 
+    /**
+     * Отвечает ли телефон на ARP. Незавершённая запись в /proc/net/arp
+     * хранится с нулевым MAC: ядро спросило «кто это» и не дождалось. На
+     * машине именно так и было — 192.168.42.129=00:00:00:00:00:00, при
+     * живой несущей и нулевых ошибках передачи.
+     */
+    public static boolean isPhoneAnswering() {
+        BufferedReader r = null;
+        try {
+            r = new BufferedReader(new FileReader("/proc/net/arp"), 4096);
+            String ln = r.readLine();
+            while ((ln = r.readLine()) != null) {
+                String[] f = ln.trim().split("\\s+");
+                if (f.length < 6 || !"usb0".equals(f[5])) {
+                    continue;
+                }
+                if (!"00:00:00:00:00:00".equals(f[3])) {
+                    return true;
+                }
+            }
+        } catch (Throwable ignored) {
+        } finally {
+            close(r);
+        }
+        return false;
+    }
+
+    private volatile String dhcpResult;
+
+    /** Что ответил DHCP-сервер телефона, для экрана моста. */
+    public String getDhcpResult() {
+        return dhcpResult == null ? "не запрашивался" : dhcpResult;
+    }
+
+    /**
+     * Просит адрес у телефона по DHCP.
+     *
+     * Статика 192.168.42.2 — догадка: Android при раздаче по USB обычно
+     * занимает 192.168.42.129. «Обычно» здесь и подвело, потому что телефон
+     * не отвечает на ARP, хотя раздача включена. DHCP снимает догадку
+     * целиком: сервер раздачи сам называет и адрес для нас, и свой
+     * собственный. А если он молчит — значит на той стороне сетевого стека
+     * нет, и это тоже ответ, причём окончательный.
+     *
+     * Клиентов перебираем три: netcfg из прошивки, dhcpcd и busybox udhcpc.
+     * Какой из них есть на этом ГУ, заранее неизвестно, а лишний вызов
+     * отсутствующей команды безвреден.
+     */
+    public String dhcpUsb0() {
+        if (!hasIface("usb0")) {
+            dhcpResult = "usb0 ещё нет";
+            return dhcpResult;
+        }
+        String cmds =
+                "ifconfig usb0 up\n"
+                + "netcfg usb0 dhcp\n"
+                + "dhcpcd -t 12 usb0\n"
+                + "busybox udhcpc -i usb0 -n -q -t 4 -T 3\n"
+                + "ifconfig usb0\n"
+                + "cat /proc/net/arp\n";
+        String out = runAsRoot(cmds);
+        String addr = ifaceAddress("usb0");
+        dhcpResult = "addr=" + (addr == null ? "нет" : addr)
+                + " телефон=" + (isPhoneAnswering() ? "ОТВЕТИЛ" : "молчит")
+                + "  " + out;
+        Log.i(TAG, "DHCP: " + dhcpResult);
+        return dhcpResult;
+    }
+
     /** Адрес, который берёт себе ГУ. Телефон при раздаче занимает .129. */
     public static final String USB0_IP = "192.168.42.2";
 

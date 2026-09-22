@@ -293,6 +293,11 @@ public final class BridgeSource implements DataSource {
         return txResult == null ? "не запускалась" : txResult;
     }
 
+    /** Запускалась ли проба передачи в этом запуске. */
+    public boolean isTxTried() {
+        return txResult != null;
+    }
+
     /** Короткая форма адреса: на экране 800x480 место на счету. */
     private static String shortIp(String ip) {
         int d = ip.lastIndexOf('.');

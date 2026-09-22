@@ -87,6 +87,7 @@ public final class MainActivity extends Activity {
         // из-за этого нельзя.
         transport = new TransportProbe(this);
         com.q50gtr.plus.ui.DiagOverlay.setTransport(transport);
+        com.q50gtr.plus.ui.DiagOverlay.setBridge(bridge);
         new Thread(new Runnable() {
             public void run() {
                 try {
@@ -112,22 +113,6 @@ public final class MainActivity extends Activity {
                 finish();
             }
         });
-        dashboard.setOnCheckBluetooth(new Runnable() {
-            public void run() {
-                Log.i(TAG, "запрошена проверка Bluetooth");
-                ecuTek.requestCheck();
-                new Thread(new Runnable() {
-                    public void run() {
-                        // Даём зонду отработать поиск, потом выгружаем отчёт.
-                        try {
-                            Thread.sleep(16000L);
-                        } catch (InterruptedException ignored) {
-                        }
-                        saveDiagnostics();
-                    }
-                }, "q50-btcheck").start();
-            }
-        });
         // Загрузка драйвера USB-модема. Только по явному нажатию кнопки на
         // странице ТРАНСПОРТ — пользователь разрешил именно такой порядок.
         dashboard.setOnLoadRndis(new Runnable() {
@@ -143,10 +128,16 @@ public final class MainActivity extends Activity {
                             } else if (!TransportProbe.isIfaceUp("usb0")
                                     || TransportProbe.ifaceAddress("usb0") == null) {
                                 transport.configureUsb0();
+                            } else if (!bridge.isTxTried()) {
+                                // Интерфейс поднят и адресован: заставляем ГУ
+                                // отправить пакет самому и смотрим на TX.
+                                bridge.txTest();
+                            } else if (!TransportProbe.isPhoneAnswering()) {
+                                // Передавать умеем, а телефон на ARP молчит.
+                                // Дальше спрашиваем адрес у него самого.
+                                transport.dhcpUsb0();
+                                bridge.txTest();
                             } else {
-                                // Интерфейс поднят и адресован, а передачи
-                                // нет: последний шаг — заставить ГУ отправить
-                                // пакет самому и посмотреть на счётчик TX.
                                 bridge.txTest();
                             }
                         } catch (Throwable t) {

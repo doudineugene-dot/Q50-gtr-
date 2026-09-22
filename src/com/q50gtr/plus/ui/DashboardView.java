@@ -46,8 +46,6 @@ public final class DashboardView extends View implements Runnable {
     private int diagPage;
     /** Кого дёрнуть, когда нажали экранную стрелку «назад». */
     private Runnable onExit;
-    /** Кого дёрнуть по кнопке «Проверить Bluetooth». */
-    private Runnable onCheckBluetooth;
     /** Кого дёрнуть по кнопке загрузки драйвера RNDIS. */
     private Runnable onLoadRndis;
     private long clockPressAtMs;
@@ -215,10 +213,6 @@ public final class DashboardView extends View implements Runnable {
         onExit = r;
     }
 
-    public void setOnCheckBluetooth(Runnable r) {
-        onCheckBluetooth = r;
-    }
-
     public void setOnLoadRndis(Runnable r) {
         onLoadRndis = r;
     }
@@ -284,9 +278,7 @@ public final class DashboardView extends View implements Runnable {
                 // вкладок: они лежат поверх них.
                 if (!dragging && onButton) {
                     clockPressAtMs = 0L;
-                    if (diagPage == DiagOverlay.BLUETOOTH && onCheckBluetooth != null) {
-                        onCheckBluetooth.run();
-                    } else if (diagPage == DiagOverlay.TRANSPORT && onLoadRndis != null) {
+                    if (diagPage == DiagOverlay.BRIDGE && onLoadRndis != null) {
                         onLoadRndis.run();
                     }
                     return true;

@@ -5,18 +5,17 @@ import android.graphics.Paint;
 
 import com.q50gtr.plus.data.Channel;
 import com.q50gtr.plus.data.DataHub;
-import com.q50gtr.plus.data.EcuTekLiveSource;
 import com.q50gtr.plus.data.InTouchVehicleSource;
 import com.q50gtr.plus.data.VehicleData;
 import com.q50gtr.plus.data.VehicleProbe;
 
 /**
- * Диагностический оверлей: состояние транспорта, источники каналов и список
- * сигналов, которые ГУ отдаёт, а мы ещё не принимаем.
+ * Диагностический оверлей: мост через телефон и состояние каналов.
  *
  * По умолчанию выключен и ничего не рисует, поэтому утверждённый визуал он не
  * меняет. Переключается долгим нажатием (около секунды) на часы в верхней
- * полосе: ВЫКЛ -> СОСТОЯНИЕ -> СЕНСОРЫ -> ВЫКЛ.
+ * полосе: ВЫКЛ -> МОСТ -> СОСТОЯНИЕ -> ВЫКЛ. Первым идёт мост: именно его
+ * открывают у машины, и лишние нажатия по дороге к нему — потерянное время.
  *
  * Читается он с фотографии в солнечном салоне, а не в тёмной комнате, поэтому
  * цвета здесь свои, яркие, а не приглушённые из темы приборов: первый снимок с
@@ -24,13 +23,19 @@ import com.q50gtr.plus.data.VehicleProbe;
  */
 public final class DiagOverlay {
 
+    /*
+     * Страниц осталось две, и первая — та, ради которой оверлей сейчас
+     * открывают. Раньше их было пять: СЕНСОРЫ, ECUTEK и BLUETOOTH отвечали
+     * на вопросы, которые давно закрыты — привязка сенсоров снята и
+     * записана, прямой путь до EVI признан невозможным, Bluetooth на этом
+     * слое Android доказанно отсутствует. Листать их по дороге к мосту
+     * значило тратить нажатия впустую. Отчёты всех трёх по-прежнему пишутся
+     * в архив на флешке: с экрана ушли страницы, а не доказательства.
+     */
     public static final int OFF = 0;
-    public static final int STATUS = 1;
-    public static final int SENSORS = 2;
-    public static final int ECUTEK = 3;
-    public static final int BLUETOOTH = 4;
-    public static final int TRANSPORT = 5;
-    public static final int PAGES = 6;
+    public static final int BRIDGE = 1;
+    public static final int STATUS = 2;
+    public static final int PAGES = 3;
 
     /* Палитра оверлея: максимальный контраст, никакого «приглушённого». */
     private static final int FG = 0xFFFFFFFF;
@@ -52,6 +57,13 @@ public final class DiagOverlay {
         transport = p;
     }
 
+    /** Приёмник моста: подпись на кнопке зависит от того, что он уже пробовал. */
+    private static com.q50gtr.plus.net.BridgeSource bridge;
+
+    public static void setBridge(com.q50gtr.plus.net.BridgeSource b) {
+        bridge = b;
+    }
+
     public static void setVersion(String v) {
         version = v == null ? "?" : v;
     }
@@ -59,22 +71,71 @@ public final class DiagOverlay {
     public static void draw(Canvas c, Theme t, Layout l, DataHub hub,
                             VehicleProbe probe, DisplayInfo display, long nowMs,
                             int page) {
-        if (page == TRANSPORT) {
-            String head = "РАЗВЕДКА ТРАНСПОРТОВ";
-            if (transport != null && transport.getLoadResult() != null) {
-                head = head + "   |   insmod: " + transport.getLoadResult();
-            }
-            drawText(c, t, l, transport == null ? null : transport.getReport(), head);
-            drawButton(c, t, l, buttonLabel(TRANSPORT));
-        } else if (page == BLUETOOTH) {
-            drawBluetooth(c, t, l, hub);
-        } else if (page == ECUTEK) {
-            drawEcuTek(c, t, l, hub, nowMs);
-        } else if (page == SENSORS) {
-            drawSensors(c, t, l, hub, probe);
+        if (page == BRIDGE) {
+            drawBridge(c, t, l, hub);
+            drawButton(c, t, l, buttonLabel(BRIDGE));
         } else {
             drawStatus(c, t, l, hub, probe, display, nowMs);
         }
+    }
+
+    /**
+     * Мост: всё про сеть на одном экране, без листания.
+     *
+     * Порядок строк — порядок вопросов, которые задаёшь у машины: дошёл ли
+     * пакет, какой у ГУ адрес, жив ли провод, есть ли маршрут, отвечает ли
+     * телефон. Каждая следующая отвечает, почему предыдущая пуста, поэтому
+     * снимок этой страницы — законченный ответ, а не половина.
+     */
+    private static void drawBridge(Canvas c, Theme t, Layout l, DataHub hub) {
+        String[] text = new String[24];
+        int[] colour = new int[24];
+        int n = 0;
+
+        colour[n] = KEY; text[n++] = "МОСТ ЧЕРЕЗ ТЕЛЕФОН   " + version;
+        if (!(hub.getBridge() instanceof com.q50gtr.plus.net.BridgeSource)) {
+            colour[n] = ERR; text[n++] = "приёмник не создан";
+            panel(c, t, l, text, colour, n, 1);
+            return;
+        }
+        com.q50gtr.plus.net.BridgeSource b =
+                (com.q50gtr.plus.net.BridgeSource) hub.getBridge();
+
+        colour[n] = b.getPacketCount() > 0 ? OK : HOT;
+        text[n++] = "ПРИЁМ: UDP " + com.q50gtr.plus.net.BridgeSource.PORT
+                + "  пакетов=" + b.getPacketCount()
+                + (b.getLastSender() == null ? "" : "  от " + b.getLastSender());
+        colour[n] = FG;
+        text[n++] = "АДРЕС ГУ: " + b.getLocalAddresses();
+        colour[n] = FG;
+        text[n++] = "usb0: " + b.getIfaceCounters("usb0");
+        colour[n] = FG;
+        text[n++] = "ЛИНК: "
+                + com.q50gtr.plus.diag.TransportProbe.linkDetails("usb0");
+        colour[n] = DIM;
+        text[n++] = "МАРШРУТЫ: " + com.q50gtr.plus.diag.TransportProbe.routes();
+        // Телефон отвечает на ARP или нет — единственная строка, которая
+        // отделяет «нас не слышат» от «нам нечем отправить».
+        colour[n] = com.q50gtr.plus.diag.TransportProbe.isPhoneAnswering() ? OK : ERR;
+        text[n++] = "ARP: " + com.q50gtr.plus.diag.TransportProbe.arp();
+        colour[n] = DIM;
+        text[n++] = "ПЕРЕДАЧА: " + b.getTxResult();
+        colour[n] = DIM;
+        text[n++] = "DHCP: " + (transport == null ? "-" : transport.getDhcpResult());
+        colour[n] = b.getPacketCount() > 0 ? OK : DIM;
+        text[n++] = "ТЕСТ: " + b.getTestInfo();
+        colour[n] = DIM;
+        text[n++] = "USB: " + b.getUsbDevices();
+        if (transport != null && transport.getLoadResult() != null) {
+            colour[n] = FG; text[n++] = "insmod: " + transport.getLoadResult();
+        }
+        if (transport != null && transport.getReport().length() > 0) {
+            colour[n] = DIM; text[n++] = "ТРАНСПОРТ: " + transport.summary();
+        }
+        if (b.getLastError() != null) {
+            colour[n] = ERR; text[n++] = "ОШИБКА: " + b.getLastError();
+        }
+        panel(c, t, l, text, colour, n, 1);
     }
 
     private static void drawStatus(Canvas c, Theme t, Layout l, DataHub hub,
@@ -122,40 +183,6 @@ public final class DiagOverlay {
                     + (probe.isPermissionGranted() ? "GRANTED" : "DENIED");
         }
 
-        if (hub.getBridge() instanceof com.q50gtr.plus.net.BridgeSource) {
-            com.q50gtr.plus.net.BridgeSource b =
-                    (com.q50gtr.plus.net.BridgeSource) hub.getBridge();
-            colour[n] = b.getPacketCount() > 0 ? OK : DIM;
-            text[n++] = "МОСТ: UDP " + com.q50gtr.plus.net.BridgeSource.PORT
-                    + "  пакетов=" + b.getPacketCount()
-                    + (b.getLastSender() == null ? "" : "  от " + b.getLastSender());
-            colour[n] = DIM;
-            text[n++] = "АДРЕС ГУ: " + b.getLocalAddresses();
-            colour[n] = DIM;
-            text[n++] = "ИНТЕРФЕЙСЫ: " + b.getKernelInterfaces();
-            colour[n] = FG;
-            text[n++] = "USB: " + b.getUsbDevices();
-            colour[n] = FG;
-            text[n++] = "usb0: " + b.getIfaceCounters("usb0");
-            colour[n] = FG;
-            text[n++] = "usb0 ЛИНК: "
-                    + com.q50gtr.plus.diag.TransportProbe.linkDetails("usb0");
-            colour[n] = DIM;
-            text[n++] = "МАРШРУТЫ: " + com.q50gtr.plus.diag.TransportProbe.routes();
-            colour[n] = DIM;
-            text[n++] = "ARP: " + com.q50gtr.plus.diag.TransportProbe.arp();
-            colour[n] = DIM;
-            text[n++] = "ПЕРЕДАЧА: " + b.getTxResult();
-            colour[n] = b.getPacketCount() > 0 ? OK : DIM;
-            text[n++] = "ТЕСТ: " + b.getTestInfo();
-            if (transport != null && transport.getReport().length() > 0) {
-                colour[n] = FG; text[n++] = "ТРАНСПОРТ: " + transport.summary();
-            }
-            if (b.getLastError() != null) {
-                colour[n] = ERR; text[n++] = "МОСТ ERR: " + b.getLastError();
-            }
-        }
-
         colour[n] = 0; text[n++] = null;   // пустая строка
 
         // Обороты восстанавливаются из мощности и момента, когда прямой
@@ -182,41 +209,6 @@ public final class DiagOverlay {
         n = channel(text, colour, n, "KNOCK", d.knockRetard, nowMs);
 
         panel(c, t, l, text, colour, n, 1);
-    }
-
-    /**
-     * Сырые значения всех автомобильных сенсоров. Именно эта страница
-     * отвечает на вопрос «наша привязка промахнулась или сигнала нет»:
-     * канал в обоих случаях пустой, а сырой срез различает их сразу.
-     */
-    private static void drawSensors(Canvas c, Theme t, Layout l, DataHub hub,
-                                    VehicleProbe probe) {
-        String[] raw = null;
-        if (hub.getInTouch() instanceof InTouchVehicleSource) {
-            raw = ((InTouchVehicleSource) hub.getInTouch()).getRawLines();
-        }
-        if (raw == null || raw.length == 0) {
-            // Источник не поднялся — показываем хотя бы то, что нашёл зонд.
-            java.util.List<String> free = probe == null
-                    ? new java.util.ArrayList<String>() : probe.getUnmappedNames();
-            raw = new String[free.size()];
-            for (int i = 0; i < raw.length; i++) {
-                String v = free.get(i);
-                raw[i] = v != null && v.startsWith("VS_ID_") ? v.substring(6) : v;
-            }
-        }
-
-        String[] text = new String[raw.length + 2];
-        int[] colour = new int[raw.length + 2];
-        int n = 0;
-        colour[n] = KEY;
-        text[n++] = "СЫРЫЕ СЕНСОРЫ: " + raw.length + "  (префикс VS_ID_ убран)";
-        colour[n] = 0; text[n++] = null;
-        for (int i = 0; i < raw.length; i++) {
-            colour[n] = FG;
-            text[n++] = raw[i];
-        }
-        panel(c, t, l, text, colour, n, 2);
     }
 
     /**
@@ -389,64 +381,6 @@ public final class DiagOverlay {
     }
 
     /**
-     * Состояние связи с адаптером EcuTek EVI. Отдельной страницей, потому что
-     * это другой транспорт с другими отказами: Bluetooth, а не шина ГУ.
-     */
-    private static void drawEcuTek(Canvas c, Theme t, Layout l, DataHub hub, long nowMs) {
-        String[] text = new String[32];
-        int[] colour = new int[32];
-        int n = 0;
-
-        if (!(hub.getEcuTek() instanceof EcuTekLiveSource)) {
-            colour[n] = ERR; text[n++] = "EcuTek-источник не собран";
-            panel(c, t, l, text, colour, n, 1);
-            return;
-        }
-        EcuTekLiveSource e = (EcuTekLiveSource) hub.getEcuTek();
-        int st = e.getState();
-        int col = st == EcuTekLiveSource.STREAMING ? OK
-                : (st == EcuTekLiveSource.CONNECTED
-                        || st == EcuTekLiveSource.SESSION_STARTING ? KEY
-                        : (st == EcuTekLiveSource.ERROR ? ERR : HOT));
-        colour[n] = col; text[n++] = "ECUTEK: " + e.getStateName();
-        colour[n] = FG;
-        text[n++] = "EVI: " + (e.getDeviceName() == null ? "(не найден)" : e.getDeviceName());
-        colour[n] = DIM;
-        text[n++] = "MAC: " + (e.getDeviceAddress() == null ? "-" : e.getDeviceAddress());
-
-        long age = e.getLastRxMs() == 0 ? -1 : nowMs - e.getLastRxMs();
-        colour[n] = FG;
-        text[n++] = "RX: " + e.getPacketCount() + " пакетов, " + e.getBytesIn() + " байт";
-        colour[n] = FG;
-        text[n++] = "LAST PACKET: " + (age < 0 ? "--" : age + " ms");
-        colour[n] = e.getRawLog().isEnabled() ? OK : DIM;
-        text[n++] = "RAW LOG: " + (e.getRawLog().isEnabled()
-                ? "ВКЛ, строк " + e.getRawLog().getLineCount()
-                : "выкл (маркер " + com.q50gtr.plus.ecutek.EcuTekRawLog.MARKER + " на флешке)");
-        if (e.getLastError() != null) {
-            colour[n] = ERR; text[n++] = "ERROR: " + e.getLastError();
-        }
-
-        colour[n] = 0; text[n++] = null;
-        colour[n] = DIM;
-        text[n++] = "Разбора кадров нет: протокол не подтверждён.";
-        colour[n] = DIM;
-        text[n++] = "Каналы ниже ждут его и показывают прочерк.";
-        colour[n] = 0; text[n++] = null;
-
-        VehicleData d = hub.getData();
-        n = channel(text, colour, n, "RPM", d.rpm, nowMs);
-        n = channel(text, colour, n, "BOOST", d.boostActual, nowMs);
-        n = channel(text, colour, n, "AFR B1", d.afrB1, nowMs);
-        n = channel(text, colour, n, "IGNITION", d.ignitionTiming, nowMs);
-        n = channel(text, colour, n, "HPFP", d.hpfpActual, nowMs);
-        for (int i = 0; i < d.knockIndex.length && n < text.length - 1; i++) {
-            n = channel(text, colour, n, "KI" + (i + 1), d.knockIndex[i], nowMs);
-        }
-        panel(c, t, l, text, colour, n, 1);
-    }
-
-    /**
      * Полный отчёт зонда Bluetooth прямо на экране.
      *
      * Он и раньше собирался, но уходил только в архив на флешке — а спор о
@@ -476,10 +410,7 @@ public final class DiagOverlay {
 
     /** Есть ли на этой странице кнопка, и какая. null — кнопки нет. */
     public static String buttonLabel(int page) {
-        if (page == BLUETOOTH) {
-            return "ПРОВЕРИТЬ BLUETOOTH  +  ЭКСПОРТ";
-        }
-        if (page == TRANSPORT) {
+        if (page == BRIDGE) {
             // Кнопка ведёт по шагам: загрузить драйвер, дождаться телефона,
             // поднять интерфейс. Так не нужно помнить, что делать дальше.
             if (transport == null) {
@@ -495,16 +426,19 @@ public final class DiagOverlay {
             if (a == null || !com.q50gtr.plus.diag.TransportProbe.isIfaceUp("usb0")) {
                 return "3. ПОДНЯТЬ usb0 (root)";
             }
-            // Интерфейс поднят и с адресом, а TX на машине остался нулём:
-            // приём есть, передачи нет. Дальше нажатие шлёт пробный пакет —
-            // только так видно, способно ли ГУ передавать вообще.
-            return "4. ПРОБА ПЕРЕДАЧИ  (usb0 = " + a + ")";
+            if (bridge == null || !bridge.isTxTried()) {
+                return "4. ПРОБА ПЕРЕДАЧИ  (usb0 = " + a + ")";
+            }
+            // Проба прошла, а телефон на ARP так и не ответил. Дальше гадать
+            // нечего: спросим адрес у него самого. DHCP-сервер раздачи обязан
+            // назвать и свой адрес, и подсеть — и если он молчит, раздачи в
+            // этом режиме нет, что бы ни показывал переключатель.
+            if (!com.q50gtr.plus.diag.TransportProbe.isPhoneAnswering()) {
+                return "5. СПРОСИТЬ АДРЕС ПО DHCP";
+            }
+            return "ПОВТОРИТЬ ПРОБУ ПЕРЕДАЧИ  (usb0 = " + a + ")";
         }
         return null;
-    }
-
-    private static void drawButton(Canvas c, Theme t, Layout l) {
-        drawButton(c, t, l, "ПРОВЕРИТЬ BLUETOOTH  +  ЭКСПОРТ");
     }
 
     private static void drawButton(Canvas c, Theme t, Layout l, String label) {
@@ -515,80 +449,6 @@ public final class DiagOverlay {
         c.drawRoundRect(t.rect, 4f, 4f, t.stroke(KEY, 1.5f));
         c.drawText(label, (r[0] + r[2]) * 0.5f, r[3] - 11f * l.s,
                 t.text(FG, 14f * l.s, Paint.Align.CENTER, false));
-    }
-
-    /** Готовый текстовый отчёт на экран: разбивается на строки и колонки. */
-    private static void drawText(Canvas c, Theme t, Layout l, String report, String title) {
-        if (report == null || report.length() == 0) {
-            String[] one = {title + ": ещё не готов"};
-            int[] col = {HOT};
-            panel(c, t, l, one, col, 1, 1);
-            return;
-        }
-        String[] raw = report.split("\n");
-        String[] text = new String[raw.length + 1];
-        int[] colour = new int[raw.length + 1];
-        int n = 0;
-        colour[n] = KEY; text[n++] = title;
-        for (int i = 0; i < raw.length && n < text.length; i++) {
-            String ln = raw[i];
-            if (ln == null || ln.trim().length() == 0) {
-                continue;
-            }
-            String low = ln.toLowerCase();
-            if (low.indexOf("есть") >= 0 || low.indexOf("uid=0") >= 0) {
-                colour[n] = OK;
-            } else if (low.indexOf("нет") >= 0 || low.indexOf("пуст") >= 0
-                    || low.indexOf("null") >= 0 || low.indexOf("не ") >= 0) {
-                colour[n] = HOT;
-            } else {
-                colour[n] = ln.startsWith("--") || ln.startsWith("==") ? KEY : FG;
-            }
-            text[n++] = ln;
-        }
-        panel(c, t, l, text, colour, n, n > 22 ? 2 : 1);
-    }
-
-    private static void drawBluetooth(Canvas c, Theme t, Layout l, DataHub hub) {
-        String report = null;
-        if (hub.getEcuTek() instanceof EcuTekLiveSource) {
-            EcuTekLiveSource e = (EcuTekLiveSource) hub.getEcuTek();
-            if (e.getProbe() != null) {
-                report = e.getProbe().getReport();
-            }
-        }
-        if (report == null || report.length() == 0) {
-            String[] one = {"Зонд Bluetooth ещё не отработал"};
-            int[] col = {HOT};
-            panel(c, t, l, one, col, 1, 1);
-            drawButton(c, t, l);
-            return;
-        }
-        String[] raw = report.split("\n");
-        String[] text = new String[raw.length + 1];
-        int[] colour = new int[raw.length + 1];
-        int n = 0;
-        colour[n] = KEY; text[n++] = "ЗОНД BLUETOOTH";
-        for (int i = 0; i < raw.length && n < text.length; i++) {
-            String ln = raw[i];
-            if (ln == null || ln.trim().length() == 0) {
-                continue;
-            }
-            String low = ln.toLowerCase();
-            if (low.indexOf("совпал") >= 0) {
-                colour[n] = low.indexOf("не совпал") >= 0 ? HOT : OK;
-            } else if (low.indexOf("нет") >= 0 || low.indexOf("null") >= 0
-                    || low.indexOf("= false") >= 0) {
-                colour[n] = HOT;
-            } else if (low.indexOf("важно") >= 0) {
-                colour[n] = OK;
-            } else {
-                colour[n] = ln.startsWith("--") ? KEY : FG;
-            }
-            text[n++] = ln;
-        }
-        panel(c, t, l, text, colour, n, n > 20 ? 2 : 1);
-        drawButton(c, t, l);
     }
 
     private static int channel(String[] text, int[] colour, int n,
