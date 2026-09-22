@@ -95,6 +95,16 @@ public final class MainActivity extends Activity {
                 } catch (Throwable t) {
                     Log.w(TAG, "разведка транспортов упала: " + t);
                 }
+                // Мост поднимается сам при старте — так попросили, и теперь
+                // это оправдано: каждый шаг цепочки доказан на машине, а
+                // нажимать кнопку в заведённой машине каждый раз незачем.
+                // Кнопка остаётся: если телефон подключили позже запуска,
+                // ею цепочка повторяется.
+                try {
+                    bringUpBridge();
+                } catch (Throwable t) {
+                    Log.w(TAG, "автоподъём моста упал: " + t);
+                }
             }
         }, "q50-transport").start();
         dashboard = new DashboardView(this, hub);

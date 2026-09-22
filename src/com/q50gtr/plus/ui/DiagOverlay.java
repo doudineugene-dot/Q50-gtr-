@@ -144,6 +144,7 @@ public final class DiagOverlay {
         }
         if (transport != null && transport.getReport().length() > 0) {
             colour[n] = DIM; text[n++] = "ТРАНСПОРТ: " + transport.summary();
+            colour[n] = DIM; text[n++] = "БЕЗ ПРОВОДА: " + transport.getWireless();
         }
         if (b.getLastError() != null) {
             colour[n] = ERR; text[n++] = "ОШИБКА: " + b.getLastError();

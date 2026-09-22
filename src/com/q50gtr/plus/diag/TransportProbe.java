@@ -711,6 +711,9 @@ public final class TransportProbe {
                 samples.add(f[i].getPath());
             }
             String low = bare.toLowerCase();
+            if (isWirelessModule(low)) {
+                wireless.append(bare).append(' ');
+            }
             if (hits.size() < 24 && (low.indexOf("rndis") >= 0 || low.indexOf("btusb") >= 0
                     || low.indexOf("usbnet") >= 0 || low.indexOf("cdc") >= 0
                     || low.startsWith("bt_") || low.indexOf("bluetooth") >= 0
@@ -723,6 +726,35 @@ public final class TransportProbe {
                 rndisPath = f[i].getPath();
             }
         }
+    }
+
+    /**
+     * Драйверы, которые избавили бы от кабеля.
+     *
+     * Своего радио у ГУ нет: в ядре только audio0 и lo, Wi-Fi-железа не
+     * существует, Bluetooth на слое Android отсутствует. Но USB-порт есть, и
+     * ровно так же выглядела сеть до того, как rndis_host нашёлся на диске.
+     * Поэтому вопрос «можно ли без провода» — это вопрос о том, лежит ли в
+     * прошивке драйвер для свистка: mac80211/cfg80211 плюс чип-специфичный
+     * модуль для Wi-Fi, btusb для Bluetooth.
+     *
+     * Список ищется тем же обходом, что нашёл rndis_host. Ответ будет
+     * фактом, а не предположением: либо файлы есть, либо их нет.
+     */
+    private final StringBuilder wireless = new StringBuilder();
+
+    public String getWireless() {
+        return wireless.length() == 0 ? "драйверов не найдено" : wireless.toString().trim();
+    }
+
+    private static boolean isWirelessModule(String low) {
+        return low.equals("btusb") || low.equals("mac80211") || low.equals("cfg80211")
+                || low.equals("rndis_wlan") || low.equals("zd1211rw")
+                || low.equals("p54usb") || low.equals("carl9170")
+                || low.startsWith("rt2") || low.startsWith("rt7") || low.startsWith("rt8")
+                || low.startsWith("rtl8") || low.startsWith("ath9k")
+                || low.startsWith("ar9") || low.startsWith("mt7")
+                || low.equals("libertas_tf_usb") || low.equals("orinoco_usb");
     }
 
     /** Модули, от которых зависят пути USB и внешнего BLE-адаптера. */
