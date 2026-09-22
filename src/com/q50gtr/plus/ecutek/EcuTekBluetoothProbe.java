@@ -42,6 +42,19 @@ public final class EcuTekBluetoothProbe {
     /** По этому префиксу EcuTek показывает адаптер в списке Bluetooth. */
     public static final String EVI_PREFIX = "EVI";
 
+    /**
+     * Адрес штатного Bluetooth-модуля автомобиля, снятый с экрана ГУ
+     * (Vehicle Bluetooth Device Info): имя INFINITI. Нужен ровно для одной
+     * проверки: совпадает ли адаптер, который отдаёт Android, с тем, что
+     * обслуживает телефон. Совпадение означает, что модуль у нас общий со
+     * штатной телефонией; несовпадение — что это разные контроллеры.
+     *
+     * PIN сопряжения сюда сознательно не переносится: он не нужен коду и не
+     * должен попадать в диагностические файлы.
+     */
+    public static final String DCU_KNOWN_MAC = "9C:8D:7C:53:B5:A9";
+    public static final String DCU_KNOWN_NAME = "INFINITI";
+
     public static final int UNKNOWN = 0;
     public static final int NO_ADAPTER = 1;
     public static final int DISABLED = 2;
@@ -196,6 +209,14 @@ public final class EcuTekBluetoothProbe {
         line("  имя    = " + (adapterName == null ? "?" : adapterName));
         line("  адрес  = " + (adapterAddress == null ? "?" : adapterAddress));
         line("  включён = " + (on ? "ДА" : "НЕТ"));
+        line("  штатный модуль машины = " + DCU_KNOWN_NAME + " " + DCU_KNOWN_MAC);
+        if (adapterAddress == null) {
+            line("  СРАВНЕНИЕ: адрес не отдан, сравнивать нечего");
+        } else if (adapterAddress.equalsIgnoreCase(DCU_KNOWN_MAC)) {
+            line("  СРАВНЕНИЕ: СОВПАЛ — это тот же модуль, что обслуживает телефон");
+        } else {
+            line("  СРАВНЕНИЕ: НЕ СОВПАЛ — Android видит другой контроллер");
+        }
 
         Set<BluetoothDevice> bonded = null;
         try {

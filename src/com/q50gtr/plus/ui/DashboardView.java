@@ -46,6 +46,8 @@ public final class DashboardView extends View implements Runnable {
     private int diagPage;
     /** Кого дёрнуть, когда нажали экранную стрелку «назад». */
     private Runnable onExit;
+    /** Кого дёрнуть по кнопке «Проверить Bluetooth». */
+    private Runnable onCheckBluetooth;
     private long clockPressAtMs;
 
     private int page;
@@ -211,6 +213,10 @@ public final class DashboardView extends View implements Runnable {
         onExit = r;
     }
 
+    public void setOnCheckBluetooth(Runnable r) {
+        onCheckBluetooth = r;
+    }
+
     private boolean isOnBackArrow(Layout l, float x, float y) {
         return y < l.topH && Math.abs(x - l.backCx()) < 28f * l.s;
     }
@@ -247,6 +253,17 @@ public final class DashboardView extends View implements Runnable {
 
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_CANCEL: {
+                // Кнопка на странице BLUETOOTH перехватывает касание раньше
+                // листания вкладок: она лежит поверх них.
+                if (!dragging && diagPage == DiagOverlay.BLUETOOTH
+                        && DiagOverlay.hitButton(l, x, y)
+                        && DiagOverlay.hitButton(l, downX, downY)) {
+                    clockPressAtMs = 0L;
+                    if (onCheckBluetooth != null) {
+                        onCheckBluetooth.run();
+                    }
+                    return true;
+                }
                 // Стрелка «назад» нарисована с эталона, но до сих пор ничего
                 // не делала: на ГУ аппаратной кнопки «назад» может не быть, и
                 // выйти из приложения было нечем.

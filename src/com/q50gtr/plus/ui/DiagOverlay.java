@@ -297,6 +297,37 @@ public final class DiagOverlay {
      * списком сенсоров сработало ровно это: показать на экране то, что иначе
      * пришлось бы везти файлом.
      */
+    /**
+     * Кнопка «Проверить Bluetooth» на странице BLUETOOTH. Прямоугольник
+     * считается в одном месте и для отрисовки, и для попадания пальцем —
+     * иначе они разъезжаются.
+     */
+    public static void buttonRect(Layout l, float[] out) {
+        float w = 300f * l.s;
+        float h = 34f * l.s;
+        out[0] = l.w - w - 12f * l.s;
+        out[1] = l.h - h - 10f * l.s;
+        out[2] = out[0] + w;
+        out[3] = out[1] + h;
+    }
+
+    public static boolean hitButton(Layout l, float x, float y) {
+        float[] r = new float[4];
+        buttonRect(l, r);
+        return x >= r[0] && x <= r[2] && y >= r[1] && y <= r[3];
+    }
+
+    private static void drawButton(Canvas c, Theme t, Layout l) {
+        float[] r = new float[4];
+        buttonRect(l, r);
+        t.rect.set(r[0], r[1], r[2], r[3]);
+        c.drawRoundRect(t.rect, 4f, 4f, t.fill(0xFF1D2B4A));
+        c.drawRoundRect(t.rect, 4f, 4f, t.stroke(KEY, 1.5f));
+        c.drawText("ПРОВЕРИТЬ BLUETOOTH  +  ЭКСПОРТ",
+                (r[0] + r[2]) * 0.5f, r[3] - 11f * l.s,
+                t.text(FG, 14f * l.s, Paint.Align.CENTER, false));
+    }
+
     private static void drawBluetooth(Canvas c, Theme t, Layout l, DataHub hub) {
         String report = null;
         if (hub.getEcuTek() instanceof EcuTekLiveSource) {
@@ -309,6 +340,7 @@ public final class DiagOverlay {
             String[] one = {"Зонд Bluetooth ещё не отработал"};
             int[] col = {HOT};
             panel(c, t, l, one, col, 1, 1);
+            drawButton(c, t, l);
             return;
         }
         String[] raw = report.split("\n");
@@ -322,13 +354,20 @@ public final class DiagOverlay {
                 continue;
             }
             String low = ln.toLowerCase();
-            colour[n] = low.indexOf("нет") >= 0 || low.indexOf("null") >= 0
-                    || low.indexOf("= false") >= 0 ? HOT
-                    : (low.indexOf("важно") >= 0 ? OK
-                    : (ln.startsWith("--") ? KEY : FG));
+            if (low.indexOf("совпал") >= 0) {
+                colour[n] = low.indexOf("не совпал") >= 0 ? HOT : OK;
+            } else if (low.indexOf("нет") >= 0 || low.indexOf("null") >= 0
+                    || low.indexOf("= false") >= 0) {
+                colour[n] = HOT;
+            } else if (low.indexOf("важно") >= 0) {
+                colour[n] = OK;
+            } else {
+                colour[n] = ln.startsWith("--") ? KEY : FG;
+            }
             text[n++] = ln;
         }
         panel(c, t, l, text, colour, n, n > 20 ? 2 : 1);
+        drawButton(c, t, l);
     }
 
     private static int channel(String[] text, int[] colour, int n,

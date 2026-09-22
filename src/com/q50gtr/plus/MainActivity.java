@@ -94,6 +94,22 @@ public final class MainActivity extends Activity {
                 finish();
             }
         });
+        dashboard.setOnCheckBluetooth(new Runnable() {
+            public void run() {
+                Log.i(TAG, "запрошена проверка Bluetooth");
+                ecuTek.requestCheck();
+                new Thread(new Runnable() {
+                    public void run() {
+                        // Даём зонду отработать поиск, потом выгружаем отчёт.
+                        try {
+                            Thread.sleep(16000L);
+                        } catch (InterruptedException ignored) {
+                        }
+                        saveDiagnostics();
+                    }
+                }, "q50-btcheck").start();
+            }
+        });
         setContentView(dashboard);
 
         if (savedInstanceState != null) {

@@ -93,6 +93,8 @@ public final class EcuTekLiveSource implements EcuTekSource {
     private volatile BluetoothAdapter mainThreadAdapter;
     private Thread worker;
     private volatile boolean running;
+    /** Поиск в эфире разрешён только после нажатия «Проверить Bluetooth». */
+    private volatile boolean discoveryRequested;
     private BluetoothSocket socket;
 
     public EcuTekLiveSource() {
@@ -173,6 +175,35 @@ public final class EcuTekLiveSource implements EcuTekSource {
         worker.start();
     }
 
+    /**
+     * Повторная проверка по нажатию кнопки, теперь уже с поиском в эфире.
+     * Отдельный поток: опрос адаптера и инквизиция занимают секунды, и
+     * держать на них отрисовку приборов нельзя.
+     */
+    public void requestCheck() {
+        if (context == null) {
+            return;
+        }
+        discoveryRequested = true;
+        try {
+            mainThreadAdapter = BluetoothAdapter.getDefaultAdapter();
+        } catch (Throwable t) {
+            Log.w(TAG, "getDefaultAdapter в главном потоке: " + t);
+        }
+        Thread w = worker;
+        if (w != null && w.isAlive()) {
+            return;   // проверка уже идёт
+        }
+        running = true;
+        worker = new Thread(new Runnable() {
+            public void run() {
+                loop();
+            }
+        }, "ecutek-bt-check");
+        worker.setDaemon(true);
+        worker.start();
+    }
+
     public void stop() {
         running = false;
         closeSocket();
@@ -219,7 +250,11 @@ public final class EcuTekLiveSource implements EcuTekSource {
         }
 
         EcuTekBluetoothProbe.Found evi = probe.findEvi();
-        if (evi == null) {
+        if (evi == null && discoveryRequested) {
+            // Поиск в эфире запускается ТОЛЬКО по явному нажатию. Инквизиция
+            // классического Bluetooth забивает эфир и способна оборвать
+            // активный разговор или музыку на штатной телефонии — делать это
+            // самовольно, при каждом старте приборов, недопустимо.
             state = SEARCHING;
             probe.startDiscovery();
             // Классический поиск занимает около 12 секунд.
@@ -231,9 +266,15 @@ public final class EcuTekLiveSource implements EcuTekSource {
         }
 
         if (evi == null) {
-            fail(ERROR, "EVI не найден: ни среди сопряжённых, ни в эфире. "
-                    + "Либо адаптер в исполнении BTLE (Android 2.3 его не видит), "
-                    + "либо он вне зоны или спит");
+            if (!discoveryRequested) {
+                fail(DEVICE_FOUND, "EVI нет среди сопряжённых. Поиск в эфире не "
+                        + "запускался, чтобы не мешать штатной телефонии — "
+                        + "нажмите «ПРОВЕРИТЬ BLUETOOTH»");
+            } else {
+                fail(ERROR, "EVI не найден: ни среди сопряжённых, ни в эфире. "
+                        + "Либо адаптер в исполнении BTLE (Android 2.3 его не видит), "
+                        + "либо он вне зоны или спит");
+            }
             return;
         }
 
