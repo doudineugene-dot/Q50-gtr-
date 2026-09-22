@@ -253,6 +253,19 @@ public final class DashboardView extends View implements Runnable {
 
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_CANCEL: {
+                // Пока открыт диагностический оверлей, короткое касание его
+                // панели листает длинный отчёт, а не переключает вкладку:
+                // иначе до второй страницы текста не добраться.
+                if (!dragging && diagPage != DiagOverlay.OFF
+                        && diagPage != DiagOverlay.STATUS
+                        && DiagOverlay.hitPanel(l, y, y)
+                        && !(diagPage == DiagOverlay.BLUETOOTH
+                                && DiagOverlay.hitButton(l, x, y))) {
+                    clockPressAtMs = 0L;
+                    DiagOverlay.nextTextPage(x > l.w * 0.5f ? 1 : -1);
+                    invalidate();
+                    return true;
+                }
                 // Кнопка на странице BLUETOOTH перехватывает касание раньше
                 // листания вкладок: она лежит поверх них.
                 if (!dragging && diagPage == DiagOverlay.BLUETOOTH
@@ -281,6 +294,7 @@ public final class DashboardView extends View implements Runnable {
                         && System.currentTimeMillis() - clockPressAtMs >= 900L) {
                     clockPressAtMs = 0L;
                     diagPage = (diagPage + 1) % DiagOverlay.PAGES;
+                    DiagOverlay.resetTextPage();
                     invalidate();
                     return true;
                 }

@@ -203,10 +203,31 @@ public final class DiagOverlay {
     }
 
     /**
-     * Рисует панель, сама подбирая размер шрифта и число колонок так, чтобы
-     * все строки поместились в экран. Раньше высота была задана константой, и
-     * строки, не влезшие в неё, просто пропадали за краем.
+     * Рисует панель ЛИСТАЯ, а не ужимая.
+     *
+     * Раньше шрифт сжимался до тех пор, пока весь отчёт не влезал в экран —
+     * и на 800x480 сотня строк превращалась в нечитаемую сетку, которую
+     * невозможно снять на телефон. Теперь размер строки фиксирован и
+     * комфортен, а что не поместилось, уходит на следующую страницу.
+     * Листание — касанием правой или левой половины панели.
      */
+    private static int totalPages = 1;
+    private static int textPage;
+
+    public static void nextTextPage(int dir) {
+        textPage += dir;
+        if (textPage < 0) {
+            textPage = totalPages - 1;
+        }
+        if (textPage >= totalPages) {
+            textPage = 0;
+        }
+    }
+
+    public static void resetTextPage() {
+        textPage = 0;
+    }
+
     private static void panel(Canvas c, Theme t, Layout l, String[] text, int[] colour,
                               int n, int columns) {
         float pad = 8f * l.s;
@@ -214,17 +235,31 @@ public final class DiagOverlay {
         float bottom = l.h - 8f * l.s;
         float maxH = bottom - top;
 
-        int rows = (n + columns - 1) / columns;
-        float lh = (maxH - 2f * pad) / rows;
-        float maxLh = 19f * l.s;
-        if (lh > maxLh) {
-            lh = maxLh;
+        // Ниже этого читать с фотографии уже нельзя, проверено на снимках из
+        // машины. Поэтому размер не уменьшается — растёт число страниц.
+        float lh = 26f * l.s;
+        float size = lh * 0.78f;
+        int rows = (int) ((maxH - 2f * pad - lh) / lh);
+        if (rows < 1) {
+            rows = 1;
         }
-        float size = lh * 0.80f;
+        int perPage = rows * columns;
+        totalPages = (n + perPage - 1) / perPage;
+        if (totalPages < 1) {
+            totalPages = 1;
+        }
+        if (textPage >= totalPages) {
+            textPage = 0;
+        }
+        int from = textPage * perPage;
+        int to = from + perPage;
+        if (to > n) {
+            to = n;
+        }
 
         float colW = 0f;
         Paint m = t.text(FG, size, Paint.Align.LEFT, false);
-        for (int i = 0; i < n; i++) {
+        for (int i = from; i < to; i++) {
             if (text[i] == null) {
                 continue;
             }
@@ -241,7 +276,10 @@ public final class DiagOverlay {
             w = maxW;
             colW = (w - 2f * pad) / columns;
         }
-        float h = rows * lh + 2f * pad;
+        float h = (to - from + columns - 1) / columns * lh + 2f * pad + lh;
+        if (h > maxH) {
+            h = maxH;
+        }
         float x = l.w - w - 8f * l.s;
         float y = top;
 
@@ -251,16 +289,31 @@ public final class DiagOverlay {
         c.drawRoundRect(t.rect, 4f, 4f, t.fill(BG));
         c.drawRoundRect(t.rect, 4f, 4f, t.stroke(KEY, 1.5f));
 
-        for (int i = 0; i < n; i++) {
+        for (int i = from; i < to; i++) {
             if (text[i] == null) {
                 continue;
             }
-            int col = i / rows;
-            int row = i % rows;
+            int idx = i - from;
+            int col = idx / rows;
+            int row = idx % rows;
             c.drawText(text[i], x + pad + col * colW,
                     y + pad + (row + 1) * lh - lh * 0.22f,
                     t.text(colour[i], size, Paint.Align.LEFT, false));
         }
+
+        // Подвал: какая страница и как листать. Без него не догадаться, что
+        // отчёт длиннее экрана.
+        if (totalPages > 1) {
+            c.drawText("стр. " + (textPage + 1) + " / " + totalPages
+                            + "   — касание слева/справа листает —",
+                    x + w * 0.5f, y + h - lh * 0.30f,
+                    t.text(KEY, size * 0.95f, Paint.Align.CENTER, false));
+        }
+    }
+
+    /** Попадание в панель: нужно, чтобы отличить листание от смены вкладки. */
+    public static boolean hitPanel(Layout l, float x, float y) {
+        return y > 50f * l.s && y < l.h - 8f * l.s;
     }
 
     /**

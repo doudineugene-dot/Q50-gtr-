@@ -157,31 +157,45 @@ public final class TransportProbe {
                 continue;
             }
             found = true;
-            line("  модули на диске (" + dirs[d] + ", " + f.length + " шт):");
-            StringBuilder b = new StringBuilder("   ");
             StringBuilder key = new StringBuilder();
-            int perLine = 0;
-            for (int i = 0; i < f.length; i++) {
-                String nm = f[i].getName();
-                b.append(nm).append(' ');
-                String bare = nm.endsWith(".ko") ? nm.substring(0, nm.length() - 3) : nm;
-                if (isKeyModule(bare)) {
-                    key.append(bare).append(' ');
-                }
-                if (++perLine >= 5) {
-                    line(b.toString());
-                    b = new StringBuilder("   ");
-                    perLine = 0;
-                }
-            }
-            if (b.length() > 3) {
-                line(b.toString());
-            }
+            int[] count = new int[1];
+            // Модули лежат не в самом каталоге, а в подкаталоге с именем
+            // версии ядра. Прошлый замер перечислил верхний уровень, увидел
+            // там одну папку и объявил, что модулей нет. Теперь обход
+            // рекурсивный — иначе это проверка папки снаружи, а не модулей.
+            walk(new File(dirs[d]), 0, key, count);
+            line("  модули на диске (" + dirs[d] + "): найдено " + count[0] + " .ko");
             line("  НА ДИСКЕ РЕШАЮЩИЕ: " + (key.length() == 0
-                    ? "rndis_host/btusb/usbnet НЕТ" : key.toString().trim()));
+                    ? "rndis_host/btusb/usbnet НЕ НАЙДЕНЫ" : key.toString().trim()));
         }
         if (!found) {
             line("  каталогов с модулями не найдено");
+        }
+    }
+
+    /** Рекурсивный обход каталога модулей. Глубина ограничена: это не find. */
+    private void walk(File dir, int depth, StringBuilder key, int[] count) {
+        if (depth > 3) {
+            return;
+        }
+        File[] f = dir.listFiles();
+        if (f == null) {
+            return;
+        }
+        for (int i = 0; i < f.length; i++) {
+            if (f[i].isDirectory()) {
+                walk(f[i], depth + 1, key, count);
+                continue;
+            }
+            String nm = f[i].getName();
+            if (!nm.endsWith(".ko")) {
+                continue;
+            }
+            count[0]++;
+            String bare = nm.substring(0, nm.length() - 3);
+            if (isKeyModule(bare)) {
+                key.append(bare).append(' ');
+            }
         }
     }
 
