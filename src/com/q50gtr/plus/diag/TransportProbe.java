@@ -113,6 +113,32 @@ public final class TransportProbe {
         return new File("/sys/class/net/" + name).exists();
     }
 
+    /**
+     * Поднят ли интерфейс. Флаги ядра, бит 0x1 — IFF_UP. Именно этого
+     * признака не хватало: адрес на интерфейсе может висеть и при DOWN, и
+     * тогда всё выглядит настроенным, а ядро молчит даже на ARP.
+     */
+    public static boolean isIfaceUp(String name) {
+        BufferedReader r = null;
+        try {
+            r = new BufferedReader(
+                    new FileReader("/sys/class/net/" + name + "/flags"), 64);
+            String ln = r.readLine();
+            if (ln == null) {
+                return false;
+            }
+            ln = ln.trim();
+            if (ln.startsWith("0x") || ln.startsWith("0X")) {
+                ln = ln.substring(2);
+            }
+            return (Long.parseLong(ln, 16) & 1L) != 0L;
+        } catch (Throwable t) {
+            return false;
+        } finally {
+            close(r);
+        }
+    }
+
     /** Адрес интерфейса, или null если не настроен. */
     public static String ifaceAddress(String name) {
         try {
@@ -160,13 +186,31 @@ public final class TransportProbe {
             loadResult = "usb0 уже настроен: " + already;
             return loadResult;
         }
-        String cmds = "ifconfig usb0 " + USB0_IP + " netmask 255.255.255.0 up\n"
-                + "busybox ifconfig usb0 " + USB0_IP + " netmask 255.255.255.0 up\n";
+        // Поднимать интерфейс НУЖНО ОТДЕЛЬНОЙ командой. Прошлый вариант
+        // задавал адрес и «up» одной строкой, toolbox съел адрес и
+        // проигнорировал флаг: на машине это дало usb0 с адресом, но в
+        // состоянии DOWN — кадры приходили, а ядро не отвечало даже на ARP
+        // (TX 0). Поэтому теперь up идёт и до адреса, и после, разными
+        // инструментами: синтаксис у toolbox, busybox и netcfg разный, а
+        // повтор с теми же значениями безвреден.
+        String cmds =
+                "ifconfig usb0 up\n"
+                + "netcfg usb0 up\n"
+                + "busybox ifconfig usb0 up\n"
+                + "ifconfig usb0 " + USB0_IP + " netmask 255.255.255.0\n"
+                + "busybox ifconfig usb0 " + USB0_IP + " netmask 255.255.255.0\n"
+                + "ifconfig usb0 up\n"
+                + "busybox ifconfig usb0 up\n"
+                + "busybox route add -net 192.168.42.0 netmask 255.255.255.0 dev usb0\n"
+                + "ifconfig usb0\n";
         String out = runAsRoot(cmds);
         String addr = ifaceAddress("usb0");
-        loadResult = addr != null
-                ? "usb0 ПОДНЯТ: " + addr
-                : "usb0 НЕ ПОДНЯЛСЯ: " + (out.length() == 0 ? "(без сообщений)" : out);
+        // Адреса мало: он был и в прошлый раз. Признаком служит состояние.
+        boolean up = isIfaceUp("usb0");
+        loadResult = (addr != null && up ? "usb0 ГОТОВ: " : "usb0 НЕ ГОТОВ: ")
+                + "addr=" + (addr == null ? "нет" : addr)
+                + " state=" + (up ? "UP" : "DOWN")
+                + "  " + (out.length() == 0 ? "" : out);
         Log.i(TAG, loadResult);
         return loadResult;
     }

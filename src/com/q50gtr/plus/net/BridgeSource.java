@@ -202,7 +202,11 @@ public final class BridgeSource implements DataSource {
                     return "строка не разобрана";
                 }
                 // 0 байт, 1 пакетов на приём; 8 байт, 9 пакетов на передачу.
-                return "RX " + f[1] + " пак / " + f[0] + " байт   TX " + f[9] + " пак";
+                // Состояние впереди: без него счётчики обманывают. На машине
+                // было RX 4 при TX 0 — кадры шли, а ядро не отвечало даже на
+                // ARP, потому что интерфейс был опущен.
+                return (com.q50gtr.plus.diag.TransportProbe.isIfaceUp(name) ? "UP" : "DOWN")
+                        + "  RX " + f[1] + " пак / " + f[0] + " байт   TX " + f[9] + " пак";
             }
             return "интерфейса нет";
         } catch (Throwable t) {
@@ -227,13 +231,19 @@ public final class BridgeSource implements DataSource {
                 Enumeration<InetAddress> a = ni.getInetAddresses();
                 while (a.hasMoreElements()) {
                     InetAddress ia = a.nextElement();
-                    if (ia.isLoopbackAddress()) {
+                    if (ia.isLoopbackAddress() || ia.getHostAddress().indexOf(':') >= 0) {
                         continue;
                     }
                     if (b.length() > 0) {
-                        b.append(' ');
+                        b.append("  ");
                     }
-                    b.append(ia.getHostAddress());
+                    // С именем интерфейса и состоянием: адрес может висеть и
+                    // на опущенном интерфейсе, и тогда всё выглядит
+                    // настроенным, а связи нет.
+                    b.append(ni.getName()).append('=').append(ia.getHostAddress());
+                    if (!com.q50gtr.plus.diag.TransportProbe.isIfaceUp(ni.getName())) {
+                        b.append("(DOWN)");
+                    }
                 }
             }
         } catch (Throwable t) {
