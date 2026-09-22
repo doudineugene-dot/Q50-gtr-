@@ -40,6 +40,7 @@ public final class MainActivity extends Activity {
     private DashboardView dashboard;
     private VehicleProbe probe;
     private EcuTekLiveSource ecuTek;
+    private com.q50gtr.plus.net.BridgeSource bridge;
     private final EcuTekRawLog rawLog = new EcuTekRawLog();
     private final Handler handler = new Handler();
     /** Раз в столько миллисекунд отчёты уходят на флешку сами. */
@@ -75,8 +76,9 @@ public final class MainActivity extends Activity {
         }
 
         ecuTek = new EcuTekLiveSource(this, rawLog);
+        bridge = new com.q50gtr.plus.net.BridgeSource();
         hub = new DataHub(new InTouchVehicleSource(this), ecuTek,
-                new AirLiftLiveSource(), new DemoDataProvider());
+                new AirLiftLiveSource(), new DemoDataProvider(), bridge);
         com.q50gtr.plus.ui.DiagOverlay.setVersion(versionName());
         dashboard = new DashboardView(this, hub);
         dashboard.setProbe(probe);

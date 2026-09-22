@@ -25,6 +25,8 @@ public final class DataHub {
     private final EcuTekSource ecuTek;
     private final AirLiftSource airLift;
     private final DemoDataProvider demo;
+    /** Мост через телефон: может отсутствовать (офлайн-рендер). */
+    private final DataSource bridge;
 
     private boolean demoAllowed = true;
     /**
@@ -40,6 +42,12 @@ public final class DataHub {
 
     public DataHub(DataSource inTouch, EcuTekSource ecuTek, AirLiftSource airLift,
                    DemoDataProvider demo) {
+        this(inTouch, ecuTek, airLift, demo, null);
+    }
+
+    public DataHub(DataSource inTouch, EcuTekSource ecuTek, AirLiftSource airLift,
+                   DemoDataProvider demo, DataSource bridge) {
+        this.bridge = bridge;
         this.inTouch = inTouch;
         this.ecuTek = ecuTek;
         this.airLift = airLift;
@@ -66,12 +74,19 @@ public final class DataHub {
         return airLift;
     }
 
+    public DataSource getBridge() {
+        return bridge;
+    }
+
     public void start() {
         if (inTouch != null) {
             inTouch.start();
         }
         ecuTek.start();
         airLift.start();
+        if (bridge != null) {
+            bridge.start();
+        }
         demo.start();
         Log.i(TAG, "старт: intouch=" + (inTouch != null)
                 + " ecutek=" + ecuTek.getName() + " airlift=" + airLift.getName());
@@ -83,6 +98,9 @@ public final class DataHub {
         }
         ecuTek.stop();
         airLift.stop();
+        if (bridge != null) {
+            bridge.stop();
+        }
         demo.stop();
     }
 
@@ -99,6 +117,13 @@ public final class DataHub {
         }
         if (airLift.isConnected()) {
             airLift.poll(data, nowMs);
+            live = true;
+        }
+        // Мост опрашивается ПОСЛЕ штатной шины: там, где параметр есть у
+        // обоих, побеждает мост — он несёт данные уровня ECU, которых на
+        // шине ГУ либо нет вовсе, либо они грубее.
+        if (bridge != null && bridge.isConnected()) {
+            bridge.poll(data, nowMs);
             live = true;
         }
 

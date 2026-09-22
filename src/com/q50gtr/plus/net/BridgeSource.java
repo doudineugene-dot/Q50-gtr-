@@ -1,0 +1,310 @@
+package com.q50gtr.plus.net;
+
+import android.util.Log;
+
+import com.q50gtr.plus.data.Channel;
+import com.q50gtr.plus.data.DataSource;
+import com.q50gtr.plus.data.VehicleData;
+
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.util.Enumeration;
+
+/**
+ * Приём телеметрии по сети — мост через телефон.
+ *
+ * Зачем. Прямой путь до EcuTek EVI-6087 с этого ГУ закрыт: адаптер в
+ * исполнении BLE, а публичного BLE API в Android до API 18 нет, здесь API 10
+ * (docs/ECUTEK-EVI-6087.md). Телефон же и BLE умеет, и с OBD-адаптером по
+ * классическому Bluetooth разговаривает. Значит читать может он, а ГУ —
+ * показывать.
+ *
+ * Эта половина моста сознательно не знает ни про EcuTek, ни про ELM327.
+ * Протокол EcuTek до сих пор не разобран, и привязывать к нему приёмник
+ * значило бы снова упереться в неизвестное. Здесь формат свой, простой и
+ * описанный до последнего байта:
+ *
+ * <pre>
+ *   UDP, порт 45455, текст UTF-8, по строке на параметр:
+ *       RPM=1234.5
+ *       BOOST=0.42
+ *       KI1=0.3
+ * </pre>
+ *
+ * Неизвестные ключи молча пропускаются — отправитель может слать больше,
+ * чем мы умеем показать. Значения вне физически возможного диапазона
+ * отбрасываются: на приборке автомобиля лучше прочерк, чем мусор из сети.
+ *
+ * ДАННЫЕ ИДУТ ТОЛЬКО В ОДНУ СТОРОНУ. Сокет открыт на приём; в сторону
+ * телефона и тем более в сторону автомобиля отсюда не уходит ничего.
+ */
+public final class BridgeSource implements DataSource {
+
+    public static final String NAME = "BRIDGE";
+    public static final int PORT = 45455;
+
+    private static final String TAG = "Q50GTR/BRIDGE";
+    private static final long STALE_AFTER_MS = 2000L;
+
+    private DatagramSocket socket;
+    private Thread worker;
+    private volatile boolean running;
+
+    private volatile int packets;
+    private volatile long lastRxMs;
+    private volatile String lastError;
+    private volatile String lastSender;
+
+    /** Принятые значения ждут тика UI: в поток приёма лезть отрисовке нельзя. */
+    private final Object lock = new Object();
+    private final java.util.HashMap<String, float[]> pending =
+            new java.util.HashMap<String, float[]>();
+
+    public String getName() {
+        return NAME;
+    }
+
+    public int getPacketCount() {
+        return packets;
+    }
+
+    public long getLastRxMs() {
+        return lastRxMs;
+    }
+
+    public String getLastError() {
+        return lastError;
+    }
+
+    public String getLastSender() {
+        return lastSender;
+    }
+
+    /** Адреса, на которые можно слать: их и надо вбить в телефоне. */
+    public String getLocalAddresses() {
+        StringBuilder b = new StringBuilder();
+        try {
+            Enumeration<NetworkInterface> e = NetworkInterface.getNetworkInterfaces();
+            while (e != null && e.hasMoreElements()) {
+                NetworkInterface ni = e.nextElement();
+                Enumeration<InetAddress> a = ni.getInetAddresses();
+                while (a.hasMoreElements()) {
+                    InetAddress ia = a.nextElement();
+                    if (ia.isLoopbackAddress()) {
+                        continue;
+                    }
+                    if (b.length() > 0) {
+                        b.append(' ');
+                    }
+                    b.append(ia.getHostAddress());
+                }
+            }
+        } catch (Throwable t) {
+            return "не определить: " + t;
+        }
+        return b.length() == 0 ? "сети нет" : b.toString();
+    }
+
+    public void start() {
+        if (running) {
+            return;
+        }
+        running = true;
+        worker = new Thread(new Runnable() {
+            public void run() {
+                loop();
+            }
+        }, "q50-bridge");
+        worker.setDaemon(true);
+        worker.start();
+    }
+
+    public void stop() {
+        running = false;
+        DatagramSocket s = socket;
+        socket = null;
+        if (s != null) {
+            s.close();
+        }
+        worker = null;
+    }
+
+    public boolean isConnected() {
+        return packets > 0 && System.currentTimeMillis() - lastRxMs < STALE_AFTER_MS;
+    }
+
+    private void loop() {
+        try {
+            socket = new DatagramSocket(PORT);
+            Log.i(TAG, "слушаю UDP " + PORT + " на " + getLocalAddresses());
+        } catch (Throwable t) {
+            lastError = "не занять порт " + PORT + ": " + t;
+            Log.w(TAG, lastError);
+            return;
+        }
+        byte[] buf = new byte[2048];
+        while (running) {
+            DatagramPacket p = new DatagramPacket(buf, buf.length);
+            try {
+                socket.receive(p);
+            } catch (Throwable t) {
+                if (running) {
+                    lastError = "приём: " + t;
+                }
+                break;
+            }
+            try {
+                parse(new String(p.getData(), 0, p.getLength(), "UTF-8"));
+                lastSender = p.getAddress() == null ? "?" : p.getAddress().getHostAddress();
+                packets++;
+                lastRxMs = System.currentTimeMillis();
+            } catch (Throwable t) {
+                lastError = "разбор: " + t;
+            }
+        }
+    }
+
+    private void parse(String body) {
+        String[] lines = body.split("\n");
+        synchronized (lock) {
+            for (int i = 0; i < lines.length; i++) {
+                String ln = lines[i].trim();
+                int eq = ln.indexOf('=');
+                if (eq <= 0) {
+                    continue;
+                }
+                String key = ln.substring(0, eq).trim().toUpperCase();
+                float v;
+                try {
+                    v = Float.parseFloat(ln.substring(eq + 1).trim());
+                } catch (Throwable t) {
+                    continue;
+                }
+                if (v != v || v == Float.POSITIVE_INFINITY || v == Float.NEGATIVE_INFINITY) {
+                    continue;
+                }
+                float[] cell = pending.get(key);
+                if (cell == null) {
+                    cell = new float[1];
+                    pending.put(key, cell);
+                }
+                cell[0] = v;
+            }
+        }
+    }
+
+    public void poll(VehicleData d, long nowMs) {
+        synchronized (lock) {
+            if (pending.isEmpty()) {
+                return;
+            }
+            java.util.Iterator<java.util.Map.Entry<String, float[]>> it =
+                    pending.entrySet().iterator();
+            while (it.hasNext()) {
+                java.util.Map.Entry<String, float[]> e = it.next();
+                Channel c = channelFor(d, e.getKey());
+                float v = e.getValue()[0];
+                if (c != null && sane(e.getKey(), v)) {
+                    c.setLive(v, NAME, nowMs);
+                }
+            }
+            pending.clear();
+        }
+    }
+
+    /**
+     * Грубая проверка на физический смысл. Приёмник открыт в сеть, и на
+     * приборы автомобиля не должно попадать то, что не может быть правдой.
+     */
+    private static boolean sane(String key, float v) {
+        if ("RPM".equals(key)) {
+            return v >= 0f && v <= 9000f;
+        }
+        if ("SPEED".equals(key)) {
+            return v >= 0f && v <= 400f;
+        }
+        if (key.startsWith("AFR")) {
+            return v >= 5f && v <= 25f;
+        }
+        if (key.indexOf("TEMP") >= 0) {
+            return v >= -60f && v <= 200f;
+        }
+        if (key.startsWith("BOOST")) {
+            return v >= -1.5f && v <= 4f;
+        }
+        return v > -100000f && v < 100000f;
+    }
+
+    private static Channel channelFor(VehicleData d, String key) {
+        if ("RPM".equals(key)) {
+            return d.rpm;
+        }
+        if ("SPEED".equals(key)) {
+            return d.speed;
+        }
+        if ("BOOST".equals(key) || "BOOST_ACTUAL".equals(key)) {
+            return d.boostActual;
+        }
+        if ("BOOST_TARGET".equals(key)) {
+            return d.boostTarget;
+        }
+        if ("AFR_B1".equals(key)) {
+            return d.afrB1;
+        }
+        if ("AFR_B2".equals(key)) {
+            return d.afrB2;
+        }
+        if ("IGNITION".equals(key) || "IGN_TIMING".equals(key)) {
+            return d.ignitionTiming;
+        }
+        if ("KNOCK_RETARD".equals(key)) {
+            return d.knockRetard;
+        }
+        if (key.length() == 3 && key.startsWith("KI")) {
+            int n = key.charAt(2) - '1';
+            if (n >= 0 && n < d.knockIndex.length) {
+                return d.knockIndex[n];
+            }
+            return null;
+        }
+        if ("HPFP".equals(key) || "HPFP_ACTUAL".equals(key)) {
+            return d.hpfpActual;
+        }
+        if ("HPFP_TARGET".equals(key)) {
+            return d.hpfpTarget;
+        }
+        if ("STFT_B1".equals(key)) {
+            return d.stftB1;
+        }
+        if ("STFT_B2".equals(key)) {
+            return d.stftB2;
+        }
+        if ("LTFT_B1".equals(key)) {
+            return d.ltftB1;
+        }
+        if ("LTFT_B2".equals(key)) {
+            return d.ltftB2;
+        }
+        if ("THROTTLE".equals(key)) {
+            return d.throttle;
+        }
+        if ("COOLANT_TEMP".equals(key)) {
+            return d.coolantTemp;
+        }
+        if ("OIL_TEMP".equals(key)) {
+            return d.oilTemp;
+        }
+        if ("INTAKE_TEMP".equals(key)) {
+            return d.intakeTemp;
+        }
+        if ("TRANS_TEMP".equals(key)) {
+            return d.transmissionTemp;
+        }
+        if ("VOLTAGE".equals(key)) {
+            return d.batteryVoltage;
+        }
+        return null;
+    }
+}

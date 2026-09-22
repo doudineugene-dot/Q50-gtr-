@@ -68,8 +68,8 @@ public final class DiagOverlay {
                                    VehicleProbe probe, DisplayInfo display, long nowMs) {
         VehicleData d = hub.getData();
 
-        String[] text = new String[26];
-        int[] colour = new int[26];
+        String[] text = new String[30];
+        int[] colour = new int[30];
         int n = 0;
 
         colour[n] = KEY; text[n++] = "Q50 GTR+ " + version;
@@ -105,6 +105,20 @@ public final class DiagOverlay {
             colour[n] = probe.isPermissionGranted() ? FG : ERR;
             text[n++] = "IVI_CAN_READ: "
                     + (probe.isPermissionGranted() ? "GRANTED" : "DENIED");
+        }
+
+        if (hub.getBridge() instanceof com.q50gtr.plus.net.BridgeSource) {
+            com.q50gtr.plus.net.BridgeSource b =
+                    (com.q50gtr.plus.net.BridgeSource) hub.getBridge();
+            colour[n] = b.getPacketCount() > 0 ? OK : DIM;
+            text[n++] = "МОСТ: UDP " + com.q50gtr.plus.net.BridgeSource.PORT
+                    + "  пакетов=" + b.getPacketCount()
+                    + (b.getLastSender() == null ? "" : "  от " + b.getLastSender());
+            colour[n] = DIM;
+            text[n++] = "АДРЕС ГУ: " + b.getLocalAddresses();
+            if (b.getLastError() != null) {
+                colour[n] = ERR; text[n++] = "МОСТ ERR: " + b.getLastError();
+            }
         }
 
         colour[n] = 0; text[n++] = null;   // пустая строка
