@@ -113,37 +113,19 @@ public final class MainActivity extends Activity {
                 finish();
             }
         });
-        // Загрузка драйвера USB-модема. Только по явному нажатию кнопки на
-        // странице ТРАНСПОРТ — пользователь разрешил именно такой порядок.
+        // Подъём моста. Только по явному нажатию кнопки — пользователь
+        // разрешил загрузку модуля ядра именно в таком порядке, и это
+        // решение в силе. Одним нажатием проходятся все шаги сразу: по
+        // отдельности они были нужны, пока каждый был под вопросом.
         dashboard.setOnLoadRndis(new Runnable() {
             public void run() {
-                Log.i(TAG, "запрошен следующий шаг настройки транспорта");
+                Log.i(TAG, "запрошен подъём моста");
                 new Thread(new Runnable() {
                     public void run() {
                         try {
-                            // Кнопка ведёт по шагам: пока драйвера нет —
-                            // грузим его, дальше поднимаем интерфейс.
-                            if (!transport.isRndisLoaded()) {
-                                transport.loadRndis();
-                            } else if (!TransportProbe.isIfaceUp("usb0")
-                                    || TransportProbe.ifaceAddress("usb0") == null) {
-                                transport.configureUsb0();
-                            } else if (!bridge.isTxTried()) {
-                                // Интерфейс поднят и адресован: заставляем ГУ
-                                // отправить пакет самому и смотрим на TX.
-                                bridge.txTest();
-                            } else if (!TransportProbe.isPhoneAnswering()) {
-                                // Передавать умеем, а телефон на ARP молчит.
-                                // Дальше спрашиваем адрес у него самого.
-                                transport.dhcpUsb0();
-                                bridge.txTest();
-                            } else {
-                                // Всё с нашей стороны доказано. Остаётся
-                                // проверить обратный путь маяком.
-                                bridge.toggleBeacon();
-                            }
+                            bringUpBridge();
                         } catch (Throwable t) {
-                            Log.w(TAG, "настройка транспорта упала: " + t);
+                            Log.w(TAG, "подъём моста упал: " + t);
                         }
                         saveDiagnostics();
                     }
@@ -154,6 +136,42 @@ public final class MainActivity extends Activity {
 
         if (savedInstanceState != null) {
             dashboard.setPage(savedInstanceState.getInt(STATE_PAGE, 0));
+        }
+    }
+
+    /**
+     * Весь подъём моста одним нажатием: модуль, интерфейс, адрес, проба,
+     * маяк.
+     *
+     * Шагов было пять, и по отдельности они были нужны: пока каждый под
+     * вопросом, важно видеть, на каком именно всё встало. Теперь все пять
+     * доказаны на машине, и разбивка превратилась в пять нажатий у руля
+     * вместо одного. Порядок и отчёт по каждому шагу сохранены — ушла
+     * только необходимость нажимать снова и снова.
+     */
+    private void bringUpBridge() {
+        if (!transport.isRndisLoaded()) {
+            transport.loadRndis();
+        }
+        // Ядру нужно время, чтобы перечислить телефон и создать usb0.
+        for (int i = 0; i < 20 && !TransportProbe.hasIface("usb0"); i++) {
+            try {
+                Thread.sleep(500L);
+            } catch (InterruptedException ignored) {
+                break;
+            }
+        }
+        if (!TransportProbe.hasIface("usb0")) {
+            Log.i(TAG, "usb0 не появился: телефон не в режиме USB-модема");
+            return;
+        }
+        if (TransportProbe.ifaceAddress("usb0") == null
+                || !TransportProbe.isIfaceUp("usb0")) {
+            transport.configureUsb0();
+        }
+        bridge.txTest();
+        if (!bridge.isBeaconOn()) {
+            bridge.toggleBeacon();
         }
     }
 

@@ -1,7 +1,7 @@
 # Версия и имя файла сборки — единственное место, где они задаются.
 
 # Совпадает с android:versionName в AndroidManifest.xml; build.sh это проверяет.
-VERSION="0.9.18-beacon"
+VERSION="0.9.19-onepress"
 
 # Номер сборки: в CI — номер прогона (растёт сам), локально — дата и время.
 if [ -n "${GITHUB_RUN_NUMBER:-}" ]; then

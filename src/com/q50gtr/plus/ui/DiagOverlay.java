@@ -423,41 +423,26 @@ public final class DiagOverlay {
 
     /** Есть ли на этой странице кнопка, и какая. null — кнопки нет. */
     public static String buttonLabel(int page) {
-        if (page == BRIDGE) {
-            // Кнопка ведёт по шагам: загрузить драйвер, дождаться телефона,
-            // поднять интерфейс. Так не нужно помнить, что делать дальше.
-            if (transport == null) {
-                return "РАЗВЕДКА ЕЩЁ ИДЁТ";
-            }
-            if (!transport.isRndisLoaded()) {
-                return "1. ЗАГРУЗИТЬ RNDIS_HOST (root)";
-            }
-            if (!com.q50gtr.plus.diag.TransportProbe.hasIface("usb0")) {
-                return "2. ПОДКЛЮЧИТЕ ТЕЛЕФОН, ВКЛЮЧИТЕ USB-МОДЕМ";
-            }
-            String a = com.q50gtr.plus.diag.TransportProbe.ifaceAddress("usb0");
-            if (a == null || !com.q50gtr.plus.diag.TransportProbe.isIfaceUp("usb0")) {
-                return "3. ПОДНЯТЬ usb0 (root)";
-            }
-            if (bridge == null || !bridge.isTxTried()) {
-                return "4. ПРОБА ПЕРЕДАЧИ  (usb0 = " + a + ")";
-            }
-            // Телефон отвечает, передача идёт, а его пакетов всё нет. Дальше
-            // проверяем обратную сторону: пусть телефон послушает маяк.
-            if (com.q50gtr.plus.diag.TransportProbe.isPhoneAnswering()) {
-                return bridge.isBeaconOn()
-                        ? "ВЫКЛЮЧИТЬ МАЯК" : "ВКЛЮЧИТЬ МАЯК  (слушайте 45455)";
-            }
-            // Проба прошла, а телефон на ARP так и не ответил. Дальше гадать
-            // нечего: спросим адрес у него самого. DHCP-сервер раздачи обязан
-            // назвать и свой адрес, и подсеть — и если он молчит, раздачи в
-            // этом режиме нет, что бы ни показывал переключатель.
-            if (!com.q50gtr.plus.diag.TransportProbe.isPhoneAnswering()) {
-                return "5. СПРОСИТЬ АДРЕС ПО DHCP";
-            }
-            return "ПОВТОРИТЬ ПРОБУ ПЕРЕДАЧИ  (usb0 = " + a + ")";
+        if (page != BRIDGE) {
+            return null;
         }
-        return null;
+        if (transport == null) {
+            return "РАЗВЕДКА ЕЩЁ ИДЁТ";
+        }
+        // Одна кнопка, один проход: модуль, интерфейс, адрес, проба, маяк.
+        // Пошаговый вариант был нужен, пока каждый шаг был под вопросом.
+        if (bridge != null && bridge.isBeaconOn()) {
+            return "ВЫКЛЮЧИТЬ МАЯК";
+        }
+        if (!com.q50gtr.plus.diag.TransportProbe.hasIface("usb0")
+                && !transport.isRndisLoaded()) {
+            return "ПОДНЯТЬ МОСТ  (нужен root)";
+        }
+        if (!com.q50gtr.plus.diag.TransportProbe.hasIface("usb0")) {
+            return "ПОДКЛЮЧИТЕ ТЕЛЕФОН, ВКЛЮЧИТЕ USB-МОДЕМ";
+        }
+        String a = com.q50gtr.plus.diag.TransportProbe.ifaceAddress("usb0");
+        return a == null ? "ПОДНЯТЬ МОСТ" : "ПОДНЯТЬ МОСТ  (usb0 = " + a + ")";
     }
 
     private static void drawButton(Canvas c, Theme t, Layout l, String label) {
