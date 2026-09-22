@@ -132,13 +132,64 @@ public final class TransportProbe {
         } finally {
             close(r);
         }
-        line("  РЕШАЮЩИЕ: " + (key.length() == 0
-                ? "btusb/rndis_host/usbnet/cdc_* НЕ НАЙДЕНЫ" : key.toString().trim()));
+        line("  ЗАГРУЖЕНЫ РЕШАЮЩИЕ: " + (key.length() == 0
+                ? "btusb/rndis_host/usbnet/cdc_* НЕТ" : key.toString().trim()));
+        moduleFiles();
+    }
+
+    /**
+     * Модули, лежащие на диске, но не загруженные.
+     *
+     * Телефон в режиме USB-модема обычно представляется как RNDIS, и
+     * подхватит его только rndis_host. Если этого модуля нет в памяти, но
+     * есть файлом — путь остаётся открытым, просто модуль не поднят. Если
+     * файла нет вовсе — ядро телефон не увидит, и USB-модем отпадает.
+     *
+     * Здесь только перечисление файлов. Ничего не загружается: insmod
+     * меняет состояние системы, а на это нужно отдельное разрешение.
+     */
+    private void moduleFiles() {
+        String[] dirs = {"/system/lib/modules", "/lib/modules", "/system/modules"};
+        boolean found = false;
+        for (int d = 0; d < dirs.length; d++) {
+            File[] f = new File(dirs[d]).listFiles();
+            if (f == null || f.length == 0) {
+                continue;
+            }
+            found = true;
+            line("  модули на диске (" + dirs[d] + ", " + f.length + " шт):");
+            StringBuilder b = new StringBuilder("   ");
+            StringBuilder key = new StringBuilder();
+            int perLine = 0;
+            for (int i = 0; i < f.length; i++) {
+                String nm = f[i].getName();
+                b.append(nm).append(' ');
+                String bare = nm.endsWith(".ko") ? nm.substring(0, nm.length() - 3) : nm;
+                if (isKeyModule(bare)) {
+                    key.append(bare).append(' ');
+                }
+                if (++perLine >= 5) {
+                    line(b.toString());
+                    b = new StringBuilder("   ");
+                    perLine = 0;
+                }
+            }
+            if (b.length() > 3) {
+                line(b.toString());
+            }
+            line("  НА ДИСКЕ РЕШАЮЩИЕ: " + (key.length() == 0
+                    ? "rndis_host/btusb/usbnet НЕТ" : key.toString().trim()));
+        }
+        if (!found) {
+            line("  каталогов с модулями не найдено");
+        }
     }
 
     /** Модули, от которых зависят пути USB и внешнего BLE-адаптера. */
     private static boolean isKeyModule(String n) {
         return "btusb".equals(n) || "rndis_host".equals(n) || "usbnet".equals(n)
+                || "rndis_wlan".equals(n) || "cdc_subset".equals(n) || "asix".equals(n)
+                || "ax88179_178a".equals(n) || "r8152".equals(n)
                 || "cdc_ether".equals(n) || "cdc_ncm".equals(n) || "cdc_acm".equals(n)
                 || "hci_uart".equals(n) || "bluetooth".equals(n) || "bnep".equals(n)
                 || "usbserial".equals(n) || "rndis_wlan".equals(n);
