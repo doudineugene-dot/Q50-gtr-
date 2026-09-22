@@ -120,7 +120,7 @@ mkdir -p "$BUILD_DIR/classes" "$BUILD_DIR/gen"
 # поведение восстановлено из декомпилированного framework.jar в проекте
 # qazwsd147/appgarage-dash. Имя файла на это не влияет никак.
 #
-# versionName в манифесте остаётся человеческим («0.7.2»), а
+# versionName в манифесте остаётся человеческим («0.8-ecutek-test»), а
 # versionCode подменяется только в копии манифеста для aapt.
 VERSION_CODE=$(date -u +%s)
 sed "s/android:versionCode=\"[0-9]*\"/android:versionCode=\"$VERSION_CODE\"/" \

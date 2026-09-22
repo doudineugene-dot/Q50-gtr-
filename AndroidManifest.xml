@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.q50gtr.plus"
     android:versionCode="7"
-    android:versionName="0.7.2">
+    android:versionName="0.8-ecutek-test">
 
     <uses-sdk android:minSdkVersion="9" android:targetSdkVersion="10" />
 
@@ -10,8 +10,21 @@
     <uses-permission android:name="com.ygomi.permission.IVI_CAN_READ" />
     <!-- диагностический отчёт на флешку: в машине adb может не быть -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <!--
+        Связь с адаптером EcuTek EVI. BLUETOOTH — состояние адаптера, список
+        сопряжённых и RFCOMM; BLUETOOTH_ADMIN — поиск в эфире. Обоих хватает
+        на API 10; ничего сверх чтения здесь не требуется.
+    -->
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
 
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+    <!--
+        aapt выводит эту фичу как ОБЯЗАТЕЛЬНУЮ из разрешения BLUETOOTH. Если
+        оставить так, ГУ без объявленного Bluetooth откажется ставить пакет —
+        а приборы работают и без EcuTek, на штатном CAN.
+    -->
+    <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
 
     <application
         android:label="@string/app_name"

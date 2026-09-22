@@ -5,6 +5,7 @@ import android.graphics.Paint;
 
 import com.q50gtr.plus.data.Channel;
 import com.q50gtr.plus.data.DataHub;
+import com.q50gtr.plus.data.EcuTekLiveSource;
 import com.q50gtr.plus.data.InTouchVehicleSource;
 import com.q50gtr.plus.data.VehicleData;
 import com.q50gtr.plus.data.VehicleProbe;
@@ -26,7 +27,8 @@ public final class DiagOverlay {
     public static final int OFF = 0;
     public static final int STATUS = 1;
     public static final int SENSORS = 2;
-    public static final int PAGES = 3;
+    public static final int ECUTEK = 3;
+    public static final int PAGES = 4;
 
     /* Палитра оверлея: максимальный контраст, никакого «приглушённого». */
     private static final int FG = 0xFFFFFFFF;
@@ -43,7 +45,9 @@ public final class DiagOverlay {
     public static void draw(Canvas c, Theme t, Layout l, DataHub hub,
                             VehicleProbe probe, DisplayInfo display, long nowMs,
                             int page) {
-        if (page == SENSORS) {
+        if (page == ECUTEK) {
+            drawEcuTek(c, t, l, hub, nowMs);
+        } else if (page == SENSORS) {
             drawSensors(c, t, l, hub, probe);
         } else {
             drawStatus(c, t, l, hub, probe, display, nowMs);
@@ -199,6 +203,64 @@ public final class DiagOverlay {
                     y + pad + (row + 1) * lh - lh * 0.22f,
                     t.text(colour[i], size, Paint.Align.LEFT, false));
         }
+    }
+
+    /**
+     * Состояние связи с адаптером EcuTek EVI. Отдельной страницей, потому что
+     * это другой транспорт с другими отказами: Bluetooth, а не шина ГУ.
+     */
+    private static void drawEcuTek(Canvas c, Theme t, Layout l, DataHub hub, long nowMs) {
+        String[] text = new String[32];
+        int[] colour = new int[32];
+        int n = 0;
+
+        if (!(hub.getEcuTek() instanceof EcuTekLiveSource)) {
+            colour[n] = ERR; text[n++] = "EcuTek-источник не собран";
+            panel(c, t, l, text, colour, n, 1);
+            return;
+        }
+        EcuTekLiveSource e = (EcuTekLiveSource) hub.getEcuTek();
+        int st = e.getState();
+        int col = st == EcuTekLiveSource.STREAMING ? OK
+                : (st == EcuTekLiveSource.CONNECTED
+                        || st == EcuTekLiveSource.SESSION_STARTING ? KEY
+                        : (st == EcuTekLiveSource.ERROR ? ERR : HOT));
+        colour[n] = col; text[n++] = "ECUTEK: " + e.getStateName();
+        colour[n] = FG;
+        text[n++] = "EVI: " + (e.getDeviceName() == null ? "(не найден)" : e.getDeviceName());
+        colour[n] = DIM;
+        text[n++] = "MAC: " + (e.getDeviceAddress() == null ? "-" : e.getDeviceAddress());
+
+        long age = e.getLastRxMs() == 0 ? -1 : nowMs - e.getLastRxMs();
+        colour[n] = FG;
+        text[n++] = "RX: " + e.getPacketCount() + " пакетов, " + e.getBytesIn() + " байт";
+        colour[n] = FG;
+        text[n++] = "LAST PACKET: " + (age < 0 ? "--" : age + " ms");
+        colour[n] = e.getRawLog().isEnabled() ? OK : DIM;
+        text[n++] = "RAW LOG: " + (e.getRawLog().isEnabled()
+                ? "ВКЛ, строк " + e.getRawLog().getLineCount()
+                : "выкл (маркер " + com.q50gtr.plus.ecutek.EcuTekRawLog.MARKER + " на флешке)");
+        if (e.getLastError() != null) {
+            colour[n] = ERR; text[n++] = "ERROR: " + e.getLastError();
+        }
+
+        colour[n] = 0; text[n++] = null;
+        colour[n] = DIM;
+        text[n++] = "Разбора кадров нет: протокол не подтверждён.";
+        colour[n] = DIM;
+        text[n++] = "Каналы ниже ждут его и показывают прочерк.";
+        colour[n] = 0; text[n++] = null;
+
+        VehicleData d = hub.getData();
+        n = channel(text, colour, n, "RPM", d.rpm, nowMs);
+        n = channel(text, colour, n, "BOOST", d.boostActual, nowMs);
+        n = channel(text, colour, n, "AFR B1", d.afrB1, nowMs);
+        n = channel(text, colour, n, "IGNITION", d.ignitionTiming, nowMs);
+        n = channel(text, colour, n, "HPFP", d.hpfpActual, nowMs);
+        for (int i = 0; i < d.knockIndex.length && n < text.length - 1; i++) {
+            n = channel(text, colour, n, "KI" + (i + 1), d.knockIndex[i], nowMs);
+        }
+        panel(c, t, l, text, colour, n, 1);
     }
 
     private static int channel(String[] text, int[] colour, int n,

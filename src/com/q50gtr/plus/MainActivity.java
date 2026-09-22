@@ -15,7 +15,11 @@ import com.q50gtr.plus.data.EcuTekLiveSource;
 import com.q50gtr.plus.data.InTouchVehicleSource;
 import com.q50gtr.plus.data.Channel;
 import com.q50gtr.plus.data.VehicleProbe;
+import com.q50gtr.plus.diag.DiagnosticBundle;
 import com.q50gtr.plus.diag.DiagnosticReport;
+import com.q50gtr.plus.diag.UsbStorage;
+import com.q50gtr.plus.ecutek.EcuTekParameters;
+import com.q50gtr.plus.ecutek.EcuTekRawLog;
 import com.q50gtr.plus.ui.DashboardView;
 
 /**
@@ -33,6 +37,8 @@ public final class MainActivity extends Activity {
     private DataHub hub;
     private DashboardView dashboard;
     private VehicleProbe probe;
+    private EcuTekLiveSource ecuTek;
+    private final EcuTekRawLog rawLog = new EcuTekRawLog();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -53,7 +59,18 @@ public final class MainActivity extends Activity {
             Log.w(TAG, "зонд упал: " + t);
         }
 
-        hub = new DataHub(new InTouchVehicleSource(this), new EcuTekLiveSource(),
+        // Сырой лог обмена с EVI выключен по умолчанию и включается только
+        // файлом-маркером в корне флешки: случайно его не задеть.
+        try {
+            java.io.File usb = UsbStorage.pickWritableDir();
+            rawLog.setEnabled(usb != null
+                    && new java.io.File(usb, EcuTekRawLog.MARKER).exists());
+        } catch (Throwable t) {
+            Log.w(TAG, "маркер сырого лога не проверить: " + t);
+        }
+
+        ecuTek = new EcuTekLiveSource(this, rawLog);
+        hub = new DataHub(new InTouchVehicleSource(this), ecuTek,
                 new AirLiftLiveSource(), new DemoDataProvider());
         dashboard = new DashboardView(this, hub);
         dashboard.setProbe(probe);
@@ -89,6 +106,20 @@ public final class MainActivity extends Activity {
             }
         } catch (Throwable t) {
             Log.w(TAG, "отчёт не записан: " + t);
+        }
+        // Один архив, который пользователь привозит из машины: разбираться на
+        // месте, какой из четырёх файлов нужен, ему не придётся.
+        try {
+            String bt = ecuTek.getProbe() == null
+                    ? "Зонд Bluetooth не отработал.\n" : ecuTek.getProbe().getReport();
+            String pars = EcuTekParameters.build(hub.getData(), ecuTek.getProbe(),
+                    ecuTek.getStateName(), ecuTek.getLastError());
+            String zip = DiagnosticBundle.write(bt, pars, rawLog.dump(), buildReport());
+            if (zip != null) {
+                Log.i(TAG, "архив диагностики: " + zip);
+            }
+        } catch (Throwable t) {
+            Log.w(TAG, "архив не записан: " + t);
         }
         super.onPause();
     }

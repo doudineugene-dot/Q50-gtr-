@@ -23,4 +23,8 @@ public class Context {
     }
 
     public android.content.pm.PackageManager getPackageManager() { return pm; }
+
+    public Object registerReceiver(BroadcastReceiver r, IntentFilter f) { return null; }
+
+    public void unregisterReceiver(BroadcastReceiver r) { }
 }
