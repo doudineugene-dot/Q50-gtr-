@@ -315,9 +315,10 @@ public final class BridgeSource implements DataSource {
                     pending.entrySet().iterator();
             while (it.hasNext()) {
                 java.util.Map.Entry<String, float[]> e = it.next();
-                Channel c = channelFor(d, e.getKey());
-                float v = e.getValue()[0];
-                if (c != null && sane(e.getKey(), v)) {
+                String key = baseKey(e.getKey());
+                Channel c = channelFor(d, key);
+                float v = e.getValue()[0] * scaleFor(e.getKey());
+                if (c != null && sane(key, v)) {
                     c.setLive(v, NAME, nowMs);
                 }
             }
@@ -344,6 +345,11 @@ public final class BridgeSource implements DataSource {
         }
         if (key.startsWith("BOOST")) {
             return v >= -1.5f && v <= 4f;
+        }
+        if (key.startsWith("AIR_")) {
+            // Подушки держат единицы бар, ресивер до ~14. Всё, что выше, —
+            // чужие единицы или мусор, и на приборку это попадать не должно.
+            return v >= 0f && v <= 16f;
         }
         return v > -100000f && v < 100000f;
     }
@@ -416,6 +422,38 @@ public final class BridgeSource implements DataSource {
         if ("VOLTAGE".equals(key)) {
             return d.batteryVoltage;
         }
+        // Пневмоподвеска Air Lift 3H: четыре угла и ресивер. Экран ШАССИ под
+        // них уже нарисован и ждёт данных.
+        if ("AIR_FL".equals(key)) {
+            return d.airFrontLeft;
+        }
+        if ("AIR_FR".equals(key)) {
+            return d.airFrontRight;
+        }
+        if ("AIR_RL".equals(key)) {
+            return d.airRearLeft;
+        }
+        if ("AIR_RR".equals(key)) {
+            return d.airRearRight;
+        }
+        if ("AIR_TANK".equals(key)) {
+            return d.airTank;
+        }
         return null;
+    }
+
+    /**
+     * Множитель к сырому значению. Air Lift считает в psi, а приборка — в
+     * барах, и перепутать их легко: 36 psi это 2.5 бара, а 36 бар — это
+     * разорванная подушка. Поэтому у давлений два имени ключа, и единица
+     * задаётся именем, а не догадкой на приёмной стороне.
+     */
+    private static float scaleFor(String key) {
+        return key.endsWith("_PSI") ? 0.0689476f : 1f;
+    }
+
+    /** Имя канала без суффикса единицы. */
+    private static String baseKey(String key) {
+        return key.endsWith("_PSI") ? key.substring(0, key.length() - 4) : key;
     }
 }
