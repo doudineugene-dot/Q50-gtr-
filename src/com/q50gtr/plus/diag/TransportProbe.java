@@ -28,7 +28,7 @@ public final class TransportProbe {
 
     private static final String TAG = "Q50GTR/TRANSPORT";
     /** Потолок строк на один источник, чтобы отчёт оставался читаемым. */
-    private static final int MAX_LINES = 40;
+    private static final int MAX_LINES = 60;
 
     private final StringBuilder report = new StringBuilder();
     private final Context context;
@@ -41,6 +41,7 @@ public final class TransportProbe {
     private int services;
     private String diskKey = "";
     private final java.util.List<String> hits = new java.util.ArrayList<String>();
+    private final java.util.List<String> samples = new java.util.ArrayList<String>();
 
     private static String canon(String p) {
         try {
@@ -191,6 +192,9 @@ public final class TransportProbe {
             // рекурсивный — иначе это проверка папки снаружи, а не модулей.
             walk(new File(dirs[d]), 0, key, count);
             line("  модулей на диске: " + count[0]);
+            for (int i = 0; i < samples.size(); i++) {
+                line("    пример: " + samples.get(i));
+            }
             // Не «да/нет», а сами имена: список из 94 штук всё равно не
             // прочитать, а по именам видно и точное написание, и близкие
             // варианты, если модуль назван иначе.
@@ -208,9 +212,18 @@ public final class TransportProbe {
         }
     }
 
-    /** Рекурсивный обход каталога модулей. Глубина ограничена: это не find. */
+    /**
+     * Рекурсивный обход каталога модулей.
+     *
+     * Глубина была ограничена тремя уровнями, и это дало ложный ответ:
+     * модули ядра лежат по пути
+     * /system/lib/modules/<версия>/kernel/drivers/net/usb/cdc_ether.ko — это
+     * шесть уровней. Обход останавливался на третьем и сообщал, что
+     * cdc_ether на диске нет, тогда как он в это же время был загружен.
+     * Предел поднят до глубины, заведомо покрывающей дерево drivers.
+     */
     private void walk(File dir, int depth, StringBuilder key, int[] count) {
-        if (depth > 3) {
+        if (depth > 10 || count[0] > 4000) {
             return;
         }
         File[] f = dir.listFiles();
@@ -231,12 +244,17 @@ public final class TransportProbe {
             if (isKeyModule(bare)) {
                 key.append(bare).append(' ');
             }
+            if (samples.size() < 3) {
+                samples.add(f[i].getPath());
+            }
             String low = bare.toLowerCase();
             if (hits.size() < 24 && (low.indexOf("rndis") >= 0 || low.indexOf("btusb") >= 0
                     || low.indexOf("usbnet") >= 0 || low.indexOf("cdc") >= 0
                     || low.startsWith("bt_") || low.indexOf("bluetooth") >= 0
                     || low.indexOf("ecm") >= 0 || low.indexOf("ncm") >= 0)) {
-                hits.add(bare);
+                // Полный путь, а не имя: по нему видно, куда вообще дотянулся
+                // обход, и не обрезан ли он снова.
+                hits.add(f[i].getPath());
             }
         }
     }
