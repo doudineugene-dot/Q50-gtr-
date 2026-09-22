@@ -20,6 +20,8 @@
     <!-- приём телеметрии от телефона по UDP: мост через телефон -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- без него WifiManager бросает SecurityException и отчёт вводит в заблуждение -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
 
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
     <!--
