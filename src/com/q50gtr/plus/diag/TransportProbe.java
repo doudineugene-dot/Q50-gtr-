@@ -139,6 +139,128 @@ public final class TransportProbe {
         }
     }
 
+    /**
+     * Подробности канала: несущая, состояние линка, MTU, MAC и счётчики
+     * ошибок передачи.
+     *
+     * IFF_UP говорит только о том, что интерфейс включили административно.
+     * Кадры уходят в провод лишь при поднятой несущей: драйвер rndis_host
+     * на неродном гаджете может принимать и при этом не звать
+     * netif_carrier_on, и тогда снаружи всё выглядит настроенным, а TX
+     * стоит на нуле. Отличить это от «нет маршрута» можно только здесь.
+     */
+    public static String linkDetails(String name) {
+        String base = "/sys/class/net/" + name + "/";
+        StringBuilder b = new StringBuilder();
+        b.append("carrier=").append(readOne(base + "carrier"));
+        b.append(" oper=").append(readOne(base + "operstate"));
+        b.append(" mtu=").append(readOne(base + "mtu"));
+        b.append(" mac=").append(readOne(base + "address"));
+        b.append(" txerr=").append(readOne(base + "statistics/tx_errors"));
+        b.append(" txdrop=").append(readOne(base + "statistics/tx_dropped"));
+        b.append(" rxerr=").append(readOne(base + "statistics/rx_errors"));
+        return b.toString();
+    }
+
+    /** Первая строка файла из /sys или /proc, или «?» если не прочитать. */
+    private static String readOne(String path) {
+        BufferedReader r = null;
+        try {
+            r = new BufferedReader(new FileReader(path), 64);
+            String ln = r.readLine();
+            return ln == null ? "?" : ln.trim();
+        } catch (Throwable t) {
+            return "?";
+        } finally {
+            close(r);
+        }
+    }
+
+    /**
+     * Таблица маршрутов человеческими адресами. /proc/net/route хранит их
+     * шестнадцатеричными и в обратном порядке байт, поэтому глазами её не
+     * прочитать — а именно отсутствие маршрута на 192.168.42.0/24 объяснило
+     * бы, почему отправка не уходит никуда.
+     */
+    public static String routes() {
+        BufferedReader r = null;
+        StringBuilder b = new StringBuilder();
+        try {
+            r = new BufferedReader(new FileReader("/proc/net/route"), 4096);
+            String ln = r.readLine(); // заголовок
+            while ((ln = r.readLine()) != null) {
+                String[] f = ln.trim().split("\\s+");
+                if (f.length < 8) {
+                    continue;
+                }
+                if (b.length() > 0) {
+                    b.append("  ");
+                }
+                b.append(f[0]).append(':').append(hexIp(f[1]))
+                        .append('/').append(maskBits(f[7]));
+                if (!"00000000".equalsIgnoreCase(f[2])) {
+                    b.append("→").append(hexIp(f[2]));
+                }
+            }
+        } catch (Throwable t) {
+            return "не прочитать: " + t;
+        } finally {
+            close(r);
+        }
+        return b.length() == 0 ? "маршрутов нет" : b.toString();
+    }
+
+    /** Таблица ARP: ответил ли телефон на запрос адреса. */
+    public static String arp() {
+        BufferedReader r = null;
+        StringBuilder b = new StringBuilder();
+        try {
+            r = new BufferedReader(new FileReader("/proc/net/arp"), 4096);
+            String ln = r.readLine(); // заголовок
+            while ((ln = r.readLine()) != null) {
+                String[] f = ln.trim().split("\\s+");
+                if (f.length < 6) {
+                    continue;
+                }
+                if (b.length() > 0) {
+                    b.append("  ");
+                }
+                b.append(f[0]).append('=').append(f[3]).append('@').append(f[5]);
+            }
+        } catch (Throwable t) {
+            return "не прочитать: " + t;
+        } finally {
+            close(r);
+        }
+        return b.length() == 0 ? "ARP пуст" : b.toString();
+    }
+
+    /** Little-endian hex из /proc/net/route в обычную запись адреса. */
+    private static String hexIp(String hex) {
+        try {
+            long v = Long.parseLong(hex, 16);
+            return (v & 0xFF) + "." + ((v >> 8) & 0xFF) + "."
+                    + ((v >> 16) & 0xFF) + "." + ((v >> 24) & 0xFF);
+        } catch (Throwable t) {
+            return hex;
+        }
+    }
+
+    /** Длина префикса из шестнадцатеричной маски. */
+    private static String maskBits(String hex) {
+        try {
+            long v = Long.parseLong(hex, 16);
+            int n = 0;
+            while (v != 0) {
+                n += (int) (v & 1L);
+                v >>>= 1;
+            }
+            return Integer.toString(n);
+        } catch (Throwable t) {
+            return hex;
+        }
+    }
+
     /** Адрес интерфейса, или null если не настроен. */
     public static String ifaceAddress(String name) {
         try {
@@ -181,9 +303,13 @@ public final class TransportProbe {
             loadResult = "usb0 ещё нет — подключите телефон и включите USB-модем";
             return loadResult;
         }
+        // Настроенным интерфейс считается только поднятым. Раньше хватало
+        // адреса, и повторное нажатие рапортовало «уже настроен» об
+        // интерфейсе в состоянии DOWN, то есть мешало себя же починить.
         String already = ifaceAddress("usb0");
-        if (already != null) {
-            loadResult = "usb0 уже настроен: " + already;
+        if (already != null && isIfaceUp("usb0")) {
+            loadResult = "usb0 уже настроен: " + already
+                    + "  " + linkDetails("usb0");
             return loadResult;
         }
         // Поднимать интерфейс НУЖНО ОТДЕЛЬНОЙ командой. Прошлый вариант
@@ -210,6 +336,7 @@ public final class TransportProbe {
         loadResult = (addr != null && up ? "usb0 ГОТОВ: " : "usb0 НЕ ГОТОВ: ")
                 + "addr=" + (addr == null ? "нет" : addr)
                 + " state=" + (up ? "UP" : "DOWN")
+                + "  " + linkDetails("usb0")
                 + "  " + (out.length() == 0 ? "" : out);
         Log.i(TAG, loadResult);
         return loadResult;

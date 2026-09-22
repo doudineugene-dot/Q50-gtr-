@@ -140,8 +140,14 @@ public final class MainActivity extends Activity {
                             // грузим его, дальше поднимаем интерфейс.
                             if (!transport.isRndisLoaded()) {
                                 transport.loadRndis();
-                            } else {
+                            } else if (!TransportProbe.isIfaceUp("usb0")
+                                    || TransportProbe.ifaceAddress("usb0") == null) {
                                 transport.configureUsb0();
+                            } else {
+                                // Интерфейс поднят и адресован, а передачи
+                                // нет: последний шаг — заставить ГУ отправить
+                                // пакет самому и посмотреть на счётчик TX.
+                                bridge.txTest();
                             }
                         } catch (Throwable t) {
                             Log.w(TAG, "настройка транспорта упала: " + t);

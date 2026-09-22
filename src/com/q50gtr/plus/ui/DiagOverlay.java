@@ -81,8 +81,10 @@ public final class DiagOverlay {
                                    VehicleProbe probe, DisplayInfo display, long nowMs) {
         VehicleData d = hub.getData();
 
-        String[] text = new String[30];
-        int[] colour = new int[30];
+        // Запас намеренный: строки диагностики добавляются по ходу работы,
+        // а выход за массив обрушит отрисовку приборов целиком.
+        String[] text = new String[40];
+        int[] colour = new int[40];
         int n = 0;
 
         colour[n] = KEY; text[n++] = "Q50 GTR+ " + version;
@@ -135,6 +137,15 @@ public final class DiagOverlay {
             text[n++] = "USB: " + b.getUsbDevices();
             colour[n] = FG;
             text[n++] = "usb0: " + b.getIfaceCounters("usb0");
+            colour[n] = FG;
+            text[n++] = "usb0 ЛИНК: "
+                    + com.q50gtr.plus.diag.TransportProbe.linkDetails("usb0");
+            colour[n] = DIM;
+            text[n++] = "МАРШРУТЫ: " + com.q50gtr.plus.diag.TransportProbe.routes();
+            colour[n] = DIM;
+            text[n++] = "ARP: " + com.q50gtr.plus.diag.TransportProbe.arp();
+            colour[n] = DIM;
+            text[n++] = "ПЕРЕДАЧА: " + b.getTxResult();
             colour[n] = b.getPacketCount() > 0 ? OK : DIM;
             text[n++] = "ТЕСТ: " + b.getTestInfo();
             if (transport != null && transport.getReport().length() > 0) {
@@ -476,10 +487,13 @@ public final class DiagOverlay {
                 return "2. ПОДКЛЮЧИТЕ ТЕЛЕФОН, ВКЛЮЧИТЕ USB-МОДЕМ";
             }
             String a = com.q50gtr.plus.diag.TransportProbe.ifaceAddress("usb0");
-            if (a == null) {
+            if (a == null || !com.q50gtr.plus.diag.TransportProbe.isIfaceUp("usb0")) {
                 return "3. ПОДНЯТЬ usb0 (root)";
             }
-            return "ГОТОВО: usb0 = " + a;
+            // Интерфейс поднят и с адресом, а TX на машине остался нулём:
+            // приём есть, передачи нет. Дальше нажатие шлёт пробный пакет —
+            // только так видно, способно ли ГУ передавать вообще.
+            return "4. ПРОБА ПЕРЕДАЧИ  (usb0 = " + a + ")";
         }
         return null;
     }

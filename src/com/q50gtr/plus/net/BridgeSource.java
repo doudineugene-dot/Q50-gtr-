@@ -37,8 +37,11 @@ import java.util.Enumeration;
  * чем мы умеем показать. Значения вне физически возможного диапазона
  * отбрасываются: на приборке автомобиля лучше прочерк, чем мусор из сети.
  *
- * ДАННЫЕ ИДУТ ТОЛЬКО В ОДНУ СТОРОНУ. Сокет открыт на приём; в сторону
- * телефона и тем более в сторону автомобиля отсюда не уходит ничего.
+ * ТЕЛЕМЕТРИЯ ИДЁТ ТОЛЬКО В ОДНУ СТОРОНУ. Сокет открыт на приём; в сторону
+ * автомобиля отсюда не уходит ничего и никогда. Единственное исключение —
+ * txTest(): по явному нажатию кнопки диагностики ГУ шлёт телефону строку
+ * «Q50GTR HELLO», чтобы проверить, способно ли оно вообще передавать. Это
+ * проба связи, а не команда: ни автомобиль, ни адаптер её не видят.
  */
 public final class BridgeSource implements DataSource {
 
@@ -211,6 +214,109 @@ public final class BridgeSource implements DataSource {
             return "интерфейса нет";
         } catch (Throwable t) {
             return "не прочитать";
+        } finally {
+            if (r != null) {
+                try {
+                    r.close();
+                } catch (Throwable ignored) {
+                }
+            }
+        }
+    }
+
+    /**
+     * Проба передачи. На машине usb0 поднялся и получил адрес, а счётчик TX
+     * так и остался на нуле: ГУ не отправило ни кадра, хотя приняло 47.
+     * Снаружи у этого две причины, и выглядят они одинаково — либо ядру
+     * некуда слать (нет маршрута), либо драйвер не отдаёт кадры в провод
+     * (нет несущей). Разделяет их только попытка отправить.
+     *
+     * Поэтому здесь ГУ шлёт само: на адрес телефона, на широковещательный
+     * адрес подсети и на сам себя. Текст ошибки сокета и прирост TX в ядре
+     * дают ответ прямо на экране.
+     *
+     * Отправляется безобидная метка на тот же порт моста: это не команда
+     * ни автомобилю, ни адаптеру.
+     */
+    public String txTest() {
+        StringBuilder b = new StringBuilder();
+        long before = txPackets("usb0");
+        String[] targets = {PHONE_IP, BROADCAST_IP, com.q50gtr.plus.diag.TransportProbe.USB0_IP};
+        DatagramSocket s = null;
+        try {
+            s = new DatagramSocket();
+            s.setBroadcast(true);
+            byte[] msg = "Q50GTR HELLO\n".getBytes("UTF-8");
+            for (int i = 0; i < targets.length; i++) {
+                if (b.length() > 0) {
+                    b.append("  ");
+                }
+                b.append(shortIp(targets[i])).append('=');
+                try {
+                    s.send(new DatagramPacket(msg, msg.length,
+                            InetAddress.getByName(targets[i]), PORT));
+                    b.append("ушёл");
+                } catch (Throwable t) {
+                    // Текст важен целиком: ENETUNREACH и EACCES означают
+                    // совершенно разные поломки, а «не отправилось» — ничего.
+                    b.append(reason(t));
+                }
+            }
+        } catch (Throwable t) {
+            b.append("сокет не создан: ").append(reason(t));
+        } finally {
+            if (s != null) {
+                try {
+                    s.close();
+                } catch (Throwable ignored) {
+                }
+            }
+        }
+        long after = txPackets("usb0");
+        b.append("   TX ").append(before < 0 ? "?" : Long.toString(before))
+                .append("→").append(after < 0 ? "?" : Long.toString(after));
+        String r = b.toString();
+        Log.i(TAG, "проба передачи: " + r);
+        txResult = r;
+        return r;
+    }
+
+    /** Телефон при раздаче по USB занимает .129 — это адрес шлюза. */
+    public static final String PHONE_IP = "192.168.42.129";
+    /** Широковещательный адрес подсети: доходит и без знания адреса телефона. */
+    public static final String BROADCAST_IP = "192.168.42.255";
+
+    private volatile String txResult;
+
+    /** Последний результат пробы передачи, для диагностического экрана. */
+    public String getTxResult() {
+        return txResult == null ? "не запускалась" : txResult;
+    }
+
+    /** Короткая форма адреса: на экране 800x480 место на счету. */
+    private static String shortIp(String ip) {
+        int d = ip.lastIndexOf('.');
+        return d < 0 ? ip : ip.substring(d);
+    }
+
+    /** Причина отказа без пакета и стека: на экране важна суть. */
+    private static String reason(Throwable t) {
+        String m = t.getMessage();
+        String n = t.getClass().getName();
+        int d = n.lastIndexOf('.');
+        return (d < 0 ? n : n.substring(d + 1)) + (m == null ? "" : " " + m);
+    }
+
+    /** Счётчик переданных пакетов интерфейса, или -1 если не прочитать. */
+    private long txPackets(String name) {
+        java.io.BufferedReader r = null;
+        try {
+            r = new java.io.BufferedReader(new java.io.FileReader(
+                    "/sys/class/net/" + name + "/statistics/tx_packets"), 64);
+            String ln = r.readLine();
+            return ln == null ? -1L : Long.parseLong(ln.trim());
+        } catch (Throwable t) {
+            return -1L;
         } finally {
             if (r != null) {
                 try {
