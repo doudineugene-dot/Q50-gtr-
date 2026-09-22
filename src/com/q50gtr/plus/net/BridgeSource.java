@@ -125,6 +125,59 @@ public final class BridgeSource implements DataSource {
         }
     }
 
+    /**
+     * Что сейчас висит на шине USB. Обновляется на каждом кадре.
+     *
+     * Нужно, чтобы отличить три разные причины, которые выглядят одинаково
+     * («не работает»): порт только для зарядки, кабель только для зарядки,
+     * либо устройство перечислилось, но режим передачи данных не выбран. В
+     * первых двух случаях здесь ничего нового не появится, в третьем —
+     * появится имя телефона.
+     */
+    public String getUsbDevices() {
+        try {
+            java.io.File[] d = new java.io.File("/sys/bus/usb/devices").listFiles();
+            if (d == null || d.length == 0) {
+                return "шина не читается";
+            }
+            StringBuilder b = new StringBuilder();
+            int n = 0;
+            for (int i = 0; i < d.length && n < 6; i++) {
+                String prod = read1(d[i].getPath() + "/product");
+                if (prod == null) {
+                    continue;   // корневые хабы без имени не интересны
+                }
+                String man = read1(d[i].getPath() + "/manufacturer");
+                if (b.length() > 0) {
+                    b.append(" | ");
+                }
+                b.append(man == null ? "" : man + " ").append(prod);
+                n++;
+            }
+            return b.length() == 0 ? "устройств с именем нет" : b.toString();
+        } catch (Throwable t) {
+            return "не прочитать";
+        }
+    }
+
+    private static String read1(String path) {
+        java.io.BufferedReader r = null;
+        try {
+            r = new java.io.BufferedReader(new java.io.FileReader(path), 256);
+            String s = r.readLine();
+            return s == null ? null : s.trim();
+        } catch (Throwable t) {
+            return null;
+        } finally {
+            if (r != null) {
+                try {
+                    r.close();
+                } catch (Throwable ignored) {
+                }
+            }
+        }
+    }
+
     /** Адреса, на которые можно слать: их и надо вбить в телефоне. */
     public String getLocalAddresses() {
         StringBuilder b = new StringBuilder();
