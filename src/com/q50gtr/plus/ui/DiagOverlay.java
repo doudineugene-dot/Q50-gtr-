@@ -462,9 +462,22 @@ public final class DiagOverlay {
             return "ПРОВЕРИТЬ BLUETOOTH  +  ЭКСПОРТ";
         }
         if (page == TRANSPORT) {
-            return transport != null && transport.isRndisLoaded()
-                    ? "RNDIS_HOST УЖЕ ЗАГРУЖЕН"
-                    : "ЗАГРУЗИТЬ RNDIS_HOST (root)";
+            // Кнопка ведёт по шагам: загрузить драйвер, дождаться телефона,
+            // поднять интерфейс. Так не нужно помнить, что делать дальше.
+            if (transport == null) {
+                return "РАЗВЕДКА ЕЩЁ ИДЁТ";
+            }
+            if (!transport.isRndisLoaded()) {
+                return "1. ЗАГРУЗИТЬ RNDIS_HOST (root)";
+            }
+            if (!com.q50gtr.plus.diag.TransportProbe.hasIface("usb0")) {
+                return "2. ПОДКЛЮЧИТЕ ТЕЛЕФОН, ВКЛЮЧИТЕ USB-МОДЕМ";
+            }
+            String a = com.q50gtr.plus.diag.TransportProbe.ifaceAddress("usb0");
+            if (a == null) {
+                return "3. ПОДНЯТЬ usb0 (root)";
+            }
+            return "ГОТОВО: usb0 = " + a;
         }
         return null;
     }

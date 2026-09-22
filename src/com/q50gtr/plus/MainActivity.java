@@ -132,13 +132,19 @@ public final class MainActivity extends Activity {
         // странице ТРАНСПОРТ — пользователь разрешил именно такой порядок.
         dashboard.setOnLoadRndis(new Runnable() {
             public void run() {
-                Log.i(TAG, "запрошена загрузка rndis_host");
+                Log.i(TAG, "запрошен следующий шаг настройки транспорта");
                 new Thread(new Runnable() {
                     public void run() {
                         try {
-                            transport.loadRndis();
+                            // Кнопка ведёт по шагам: пока драйвера нет —
+                            // грузим его, дальше поднимаем интерфейс.
+                            if (!transport.isRndisLoaded()) {
+                                transport.loadRndis();
+                            } else {
+                                transport.configureUsb0();
+                            }
                         } catch (Throwable t) {
-                            Log.w(TAG, "insmod упал: " + t);
+                            Log.w(TAG, "настройка транспорта упала: " + t);
                         }
                         saveDiagnostics();
                     }

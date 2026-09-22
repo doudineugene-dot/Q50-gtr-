@@ -108,6 +108,101 @@ public final class TransportProbe {
         return false;
     }
 
+    /** Есть ли интерфейс с таким именем в ядре. */
+    public static boolean hasIface(String name) {
+        return new File("/sys/class/net/" + name).exists();
+    }
+
+    /** Адрес интерфейса, или null если не настроен. */
+    public static String ifaceAddress(String name) {
+        try {
+            java.net.NetworkInterface ni = java.net.NetworkInterface.getByName(name);
+            if (ni == null) {
+                return null;
+            }
+            java.util.Enumeration<java.net.InetAddress> a = ni.getInetAddresses();
+            while (a.hasMoreElements()) {
+                java.net.InetAddress ia = a.nextElement();
+                if (!ia.isLoopbackAddress() && ia.getHostAddress().indexOf(':') < 0) {
+                    return ia.getHostAddress();
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return null;
+    }
+
+    /**
+     * Настраивает usb0 — интерфейс, который ядро создаёт при подключении
+     * телефона в режиме USB-модема. ТОЛЬКО ПО ЯВНОМУ НАЖАТИЮ.
+     *
+     * Адрес задаётся статически, а не по DHCP. Android при раздаче по USB
+     * работает в подсети 192.168.42.0/24 и сам занимает .129, так что адрес
+     * предсказуем; а DHCP-клиент на этой прошивке может отсутствовать или
+     * подвиснуть, и тогда непонятно, что пошло не так. Статика отрабатывает
+     * мгновенно и даёт один и тот же адрес — его можно прямо назвать в
+     * инструкции.
+     *
+     * Команда идёт дважды: через toolbox и через busybox. Синтаксис ifconfig
+     * у них различается версиями, а лишний повтор с теми же значениями
+     * безвреден.
+     *
+     * Действие временное: ничего на диске не меняется, после выключения
+     * зажигания интерфейс исчезнет вместе с подключением.
+     */
+    public String configureUsb0() {
+        if (!hasIface("usb0")) {
+            loadResult = "usb0 ещё нет — подключите телефон и включите USB-модем";
+            return loadResult;
+        }
+        String already = ifaceAddress("usb0");
+        if (already != null) {
+            loadResult = "usb0 уже настроен: " + already;
+            return loadResult;
+        }
+        String cmds = "ifconfig usb0 " + USB0_IP + " netmask 255.255.255.0 up\n"
+                + "busybox ifconfig usb0 " + USB0_IP + " netmask 255.255.255.0 up\n";
+        String out = runAsRoot(cmds);
+        String addr = ifaceAddress("usb0");
+        loadResult = addr != null
+                ? "usb0 ПОДНЯТ: " + addr
+                : "usb0 НЕ ПОДНЯЛСЯ: " + (out.length() == 0 ? "(без сообщений)" : out);
+        Log.i(TAG, loadResult);
+        return loadResult;
+    }
+
+    /** Адрес, который берёт себе ГУ. Телефон при раздаче занимает .129. */
+    public static final String USB0_IP = "192.168.42.2";
+
+    /** Выполняет команды от root через stdin su и возвращает весь вывод. */
+    private String runAsRoot(String script) {
+        StringBuilder out = new StringBuilder();
+        try {
+            Process p = Runtime.getRuntime().exec("su");
+            java.io.OutputStream os = p.getOutputStream();
+            os.write(script.getBytes("UTF-8"));
+            os.write("exit\n".getBytes("UTF-8"));
+            os.flush();
+            BufferedReader r = new BufferedReader(
+                    new InputStreamReader(p.getInputStream()), 2048);
+            BufferedReader e = new BufferedReader(
+                    new InputStreamReader(p.getErrorStream()), 2048);
+            String ln;
+            while ((ln = r.readLine()) != null) {
+                out.append(ln).append(' ');
+            }
+            while ((ln = e.readLine()) != null) {
+                out.append(ln).append(' ');
+            }
+            p.waitFor();
+            close(r);
+            close(e);
+        } catch (Throwable t) {
+            out.append("не выполнить: ").append(t);
+        }
+        return out.toString().trim();
+    }
+
     /**
      * Поднимает драйвер rndis_host, которым ядро подхватывает телефон в
      * режиме USB-модема. ТОЛЬКО ПО ЯВНОМУ НАЖАТИЮ — сам по себе этот метод
