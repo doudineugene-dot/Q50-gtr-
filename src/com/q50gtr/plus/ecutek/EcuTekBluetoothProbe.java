@@ -244,6 +244,15 @@ public final class EcuTekBluetoothProbe {
      * будет.
      */
     private void systemEvidence() {
+        line("-- версия Android и BLE --");
+        int sdk = 0;
+        try {
+            sdk = android.os.Build.VERSION.SDK_INT;
+        } catch (Throwable ignored) {
+        }
+        line("  API " + sdk + ", публичный BLE API с API 18 -> BLE "
+                + (sdk >= 18 ? "ДОСТУПЕН" : "НЕДОСТУПЕН"));
+
         line("-- признаки Bluetooth в системе --");
         try {
             boolean feat = context.getPackageManager()
@@ -287,6 +296,7 @@ public final class EcuTekBluetoothProbe {
         // модуле, до которого Android-стороне не дотянуться.
         exec("service list", "bluetooth");
         exec("getprop", "bluetooth");
+        networkEvidence();
 
         try {
             java.util.List<android.content.pm.ApplicationInfo> apps =
@@ -415,6 +425,47 @@ public final class EcuTekBluetoothProbe {
         } catch (Throwable ignored) {
         }
         return f;
+    }
+
+    /**
+     * Сетевые интерфейсы ГУ. Нужны не для Bluetooth, а для запасного пути:
+     * если прямой радиоканал до EVI закрыт, остаётся мост через телефон, и
+     * он поедет поверх сети. Есть ли у этого ГУ сеть вообще — факт, который
+     * стоит снять заодно, а не отдельной поездкой.
+     */
+    private void networkEvidence() {
+        line("-- сеть (для возможного моста через телефон) --");
+        try {
+            java.util.Enumeration<java.net.NetworkInterface> e =
+                    java.net.NetworkInterface.getNetworkInterfaces();
+            if (e == null) {
+                line("  интерфейсов не перечислить");
+                return;
+            }
+            int shown = 0;
+            while (e.hasMoreElements() && shown < 10) {
+                java.net.NetworkInterface ni = e.nextElement();
+                StringBuilder b = new StringBuilder("  ");
+                b.append(ni.getName());
+                java.util.Enumeration<java.net.InetAddress> a = ni.getInetAddresses();
+                while (a.hasMoreElements()) {
+                    b.append(' ').append(a.nextElement().getHostAddress());
+                }
+                line(b.toString());
+                shown++;
+            }
+            if (shown == 0) {
+                line("  интерфейсов нет");
+            }
+        } catch (Throwable t) {
+            line("  getNetworkInterfaces: " + t);
+        }
+        try {
+            Object wifi = context.getSystemService("wifi");
+            line("  getSystemService(\"wifi\") = " + (wifi == null ? "null" : "есть"));
+        } catch (Throwable t) {
+            line("  getSystemService(wifi): " + t);
+        }
     }
 
     /** Запускает команду и печатает строки, содержащие фильтр. Только чтение. */
