@@ -44,7 +44,7 @@ public final class DiagOverlay {
                             VehicleProbe probe, DisplayInfo display, long nowMs,
                             int page) {
         if (page == SENSORS) {
-            drawSensors(c, t, l, probe);
+            drawSensors(c, t, l, hub, probe);
         } else {
             drawStatus(c, t, l, hub, probe, display, nowMs);
         }
@@ -105,23 +105,37 @@ public final class DiagOverlay {
         panel(c, t, l, text, colour, n, 1);
     }
 
-    private static void drawSensors(Canvas c, Theme t, Layout l, VehicleProbe probe) {
-        java.util.List<String> free = probe == null
-                ? new java.util.ArrayList<String>() : probe.getUnmappedNames();
+    /**
+     * Сырые значения всех автомобильных сенсоров. Именно эта страница
+     * отвечает на вопрос «наша привязка промахнулась или сигнала нет»:
+     * канал в обоих случаях пустой, а сырой срез различает их сразу.
+     */
+    private static void drawSensors(Canvas c, Theme t, Layout l, DataHub hub,
+                                    VehicleProbe probe) {
+        String[] raw = null;
+        if (hub.getInTouch() instanceof InTouchVehicleSource) {
+            raw = ((InTouchVehicleSource) hub.getInTouch()).getRawLines();
+        }
+        if (raw == null || raw.length == 0) {
+            // Источник не поднялся — показываем хотя бы то, что нашёл зонд.
+            java.util.List<String> free = probe == null
+                    ? new java.util.ArrayList<String>() : probe.getUnmappedNames();
+            raw = new String[free.size()];
+            for (int i = 0; i < raw.length; i++) {
+                String v = free.get(i);
+                raw[i] = v != null && v.startsWith("VS_ID_") ? v.substring(6) : v;
+            }
+        }
 
-        String[] text = new String[free.size() + 2];
-        int[] colour = new int[free.size() + 2];
+        String[] text = new String[raw.length + 2];
+        int[] colour = new int[raw.length + 2];
         int n = 0;
         colour[n] = KEY;
-        text[n++] = "БЕЗ ПРИВЯЗКИ: " + free.size() + "  (префикс VS_ID_ убран)";
+        text[n++] = "СЫРЫЕ СЕНСОРЫ: " + raw.length + "  (префикс VS_ID_ убран)";
         colour[n] = 0; text[n++] = null;
-        for (int i = 0; i < free.size(); i++) {
-            String s = free.get(i);
-            if (s != null && s.startsWith("VS_ID_")) {
-                s = s.substring(6);
-            }
+        for (int i = 0; i < raw.length; i++) {
             colour[n] = FG;
-            text[n++] = s;
+            text[n++] = raw[i];
         }
         panel(c, t, l, text, colour, n, 2);
     }

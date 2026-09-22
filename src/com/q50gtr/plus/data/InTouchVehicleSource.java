@@ -46,6 +46,21 @@ public final class InTouchVehicleSource implements DataSource, SensorEventListen
     private final long[] pendingAt = new long[VehicleSignal.TABLE.length];
     private final boolean[] pendingSet = new boolean[VehicleSignal.TABLE.length];
 
+    /*
+     * Сырой срез ВСЕХ автомобильных сенсоров: тип, имя, последнее значение.
+     *
+     * Имена в таблице сигналов подобраны по смыслу, а не сняты с этой
+     * прошивки, и промах не отличить от «сигнала нет»: канал в обоих случаях
+     * пустой. Обороты показывают 0 на заведённом моторе — без сырых значений
+     * непонятно, врёт наша привязка или сам сигнал. Поэтому подписываемся на
+     * все автомобильные сенсоры и держим последнее значение каждого: один
+     * снимок экрана заменяет догадки.
+     */
+    private String[] dumpName = new String[0];
+    private int[] dumpType = new int[0];
+    private volatile float[] dumpValue = new float[0];
+    private volatile boolean[] dumpSet = new boolean[0];
+
     public InTouchVehicleSource(Context context) {
         this.context = context;
     }
@@ -72,6 +87,34 @@ public final class InTouchVehicleSource implements DataSource, SensorEventListen
 
     public int getBoundCount() {
         return bound.length;
+    }
+
+    /**
+     * Сырой срез для диагностического оверлея: по строке на автомобильный
+     * сенсор, «t13 ENGINE_RPM 0.0». Префикс VS_ID_ убран — он у всех
+     * одинаковый и только съедает ширину.
+     */
+    public String[] getRawLines() {
+        float[] dv = dumpValue;
+        boolean[] ds = dumpSet;
+        String[] out = new String[dumpName.length];
+        for (int i = 0; i < out.length; i++) {
+            String nm = dumpName[i] == null ? "?" : dumpName[i];
+            if (nm.startsWith("VS_ID_")) {
+                nm = nm.substring(6);
+            }
+            String v = (i < ds.length && ds[i]) ? fmt(dv[i]) : "--";
+            out[i] = "t" + dumpType[i] + " " + nm + " = " + v;
+        }
+        return out;
+    }
+
+    private static String fmt(float v) {
+        float a = v < 0f ? -v : v;
+        if (a >= 100f) {
+            return Integer.toString(Math.round(v));
+        }
+        return Channel.format(v, a >= 10f ? 1 : 3);
     }
 
     /* ------------------------------------------------------------------ */
@@ -103,12 +146,39 @@ public final class InTouchVehicleSource implements DataSource, SensorEventListen
             return;
         }
 
+        // Сырой срез заводится до привязки: он нужен и тогда, когда не
+        // совпало ни одно имя.
+        int vehicles = 0;
+        for (int i = 0; i < all.size(); i++) {
+            if (VehicleProbe.isVehicleSensor(all.get(i))) {
+                vehicles++;
+            }
+        }
+        dumpName = new String[vehicles];
+        dumpType = new int[vehicles];
+        dumpValue = new float[vehicles];
+        dumpSet = new boolean[vehicles];
+
         Sensor[] b = new Sensor[all.size()];
         VehicleSignal[] bs = new VehicleSignal[all.size()];
         int n = 0;
+        int dn = 0;
         for (int i = 0; i < all.size(); i++) {
             Sensor s = all.get(i);
             VehicleSignal sig = VehicleSignal.find(s.getName());
+            if (VehicleProbe.isVehicleSensor(s) && dn < vehicles) {
+                dumpName[dn] = s.getName();
+                dumpType[dn] = s.getType();
+                dn++;
+                if (sig == null) {
+                    // Непривязанный сенсор нужен только для среза, поэтому
+                    // самый медленный темп: лишняя нагрузка тут ни к чему.
+                    try {
+                        sm.registerListener(this, s, SensorManager.SENSOR_DELAY_NORMAL);
+                    } catch (Throwable ignored) {
+                    }
+                }
+            }
             if (sig == null) {
                 continue;
             }
@@ -173,6 +243,17 @@ public final class InTouchVehicleSource implements DataSource, SensorEventListen
             return;
         }
         String name = e.sensor == null ? null : e.sensor.getName();
+
+        float[] dv = dumpValue;
+        boolean[] ds = dumpSet;
+        for (int i = 0; i < dumpName.length && i < dv.length; i++) {
+            if (dumpName[i] != null && dumpName[i].equals(name)) {
+                dv[i] = e.values[0];
+                ds[i] = true;
+                break;
+            }
+        }
+
         for (int i = 0; i < VehicleSignal.TABLE.length; i++) {
             if (VehicleSignal.TABLE[i].vsId.equalsIgnoreCase(name)) {
                 pending[i] = e.values[0];
