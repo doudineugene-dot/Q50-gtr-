@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+    <!-- Android 13+ требует явного разрешения на показ уведомления самого
+         foreground-сервиса — без него служба захвата экрана не запустится. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- BIND_ACCESSIBILITY_SERVICE система выдаёт только через ручное
+         включение в Настройках → Специальные возможности; приложение не
+         может включить эту службу само. Она нужна только для третьего
+         этапа (передача касаний), выключенного по умолчанию. -->
+
+    <application
+        android:allowBackup="false"
+        android:icon="@android:drawable/sym_def_app_icon"
+        android:label="@string/app_name"
+        android:theme="@style/Theme.Q50AlpBridge"
+        android:supportsRtl="true">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <service
+            android:name=".MirrorService"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection" />
+
+        <!-- Только для третьего этапа (передача касаний). Требует ручного
+             включения пользователем в системных настройках; ничего не
+             делает, пока пользователь явно не включит и службу здесь, и
+             переключатель в приложении (см. docs/ALP-CONTROL.md). -->
+        <service
+            android:name=".TapAccessibilityService"
+            android:exported="true"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service_config" />
+        </service>
+
+    </application>
+</manifest>

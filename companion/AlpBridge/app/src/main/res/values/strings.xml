@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Q50 ALP3 Bridge</string>
+    <string name="notification_channel_name">Трансляция ALP3</string>
+    <string name="notification_title">Q50 ALP3 Bridge работает</string>
+    <string name="notification_text">Экран транслируется на Infiniti Q50 GTR+</string>
+    <string name="btn_start">Начать трансляцию</string>
+    <string name="btn_stop">Остановить</string>
+    <string name="label_target">ГУ (адрес из маяка):</string>
+    <string name="label_target_none">маяк ещё не услышан</string>
+    <string name="label_stats">кадров: 0   отправлено: 0 КБ/с</string>
+    <string name="label_crop">Область экрана для трансляции (доли 0..1)</string>
+    <string name="hint_left">left</string>
+    <string name="hint_top">top</string>
+    <string name="hint_right">right</string>
+    <string name="hint_bottom">bottom</string>
+    <string name="btn_crop_full">Весь экран</string>
+    <string name="label_control">Разрешить управление с ГУ (стойте на месте — этап 3, отключено разработчиком по умолчанию)</string>
+</resources>
