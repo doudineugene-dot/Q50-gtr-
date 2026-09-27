@@ -16,9 +16,8 @@ import android.media.Image
 import android.media.ImageReader
 import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
-import android.net.DatagramPacket
-import android.net.DatagramSocket
-import android.os.Build
+import java.net.DatagramPacket
+import java.net.DatagramSocket
 import android.os.IBinder
 import android.util.DisplayMetrics
 import android.util.Log
@@ -153,7 +152,7 @@ class MirrorService : Service() {
     }
 
     private fun createChannel() {
-        val nm = getSystemService(NotificationManager::class.java)
+        val nm = getSystemService(NotificationManager::class.java) ?: return
         val ch = NotificationChannel(
             CHANNEL_ID, getString(R.string.notification_channel_name),
             NotificationManager.IMPORTANCE_LOW,
@@ -187,7 +186,11 @@ class MirrorService : Service() {
         }, null)
 
         val metrics = DisplayMetrics()
-        val wm = getSystemService(WindowManager::class.java)
+        val wm = getSystemService(WindowManager::class.java) ?: run {
+            Log.w(TAG, "WindowManager недоступен — нечем измерить экран")
+            stopSelf()
+            return
+        }
         @Suppress("DEPRECATION")
         wm.defaultDisplay.getRealMetrics(metrics)
         val density = metrics.densityDpi

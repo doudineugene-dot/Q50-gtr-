@@ -80,7 +80,7 @@ class MainActivity : AppCompatActivity(), MirrorService.StatusListener {
                 stopMirroring()
             } else {
                 requestNotificationPermissionIfNeeded()
-                val mgr = getSystemService(MediaProjectionManager::class.java)
+                val mgr = getSystemService(MediaProjectionManager::class.java) ?: return@setOnClickListener
                 projectionLauncher.launch(mgr.createScreenCaptureIntent())
             }
         }
