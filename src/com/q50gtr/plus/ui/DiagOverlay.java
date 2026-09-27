@@ -1,7 +1,10 @@
 package com.q50gtr.plus.ui;
 
+import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.graphics.Rect;
+import android.graphics.RectF;
 
 import com.q50gtr.plus.data.Channel;
 import com.q50gtr.plus.data.DataHub;
@@ -14,8 +17,14 @@ import com.q50gtr.plus.data.VehicleProbe;
  *
  * По умолчанию выключен и ничего не рисует, поэтому утверждённый визуал он не
  * меняет. Переключается долгим нажатием (около секунды) на часы в верхней
- * полосе: ВЫКЛ -> МОСТ -> СОСТОЯНИЕ -> ВЫКЛ. Первым идёт мост: именно его
- * открывают у машины, и лишние нажатия по дороге к нему — потерянное время.
+ * полосе: ВЫКЛ -> МОСТ -> ALP3 -> СОСТОЯНИЕ -> ВЫКЛ. Первым идёт мост: именно
+ * его открывают у машины, и лишние нажатия по дороге к нему — потерянное
+ * время. Страница ALP3 стоит рядом с ним не случайно: это тот же мост,
+ * только вместо текстовой телеметрии он показывает трансляцию экрана
+ * официального приложения Air Lift Performance с телефона
+ * (docs/ALP-MIRROR-PROTOCOL.md, docs/AIRLIFT-ALP3.md) — экспериментальный
+ * режим, который никак не меняет утверждённую вкладку ШАССИ под ним:
+ * выключить оверлей — и она на месте, нетронутая.
  *
  * Читается он с фотографии в солнечном салоне, а не в тёмной комнате, поэтому
  * цвета здесь свои, яркие, а не приглушённые из темы приборов: первый снимок с
@@ -34,8 +43,9 @@ public final class DiagOverlay {
      */
     public static final int OFF = 0;
     public static final int BRIDGE = 1;
-    public static final int STATUS = 2;
-    public static final int PAGES = 3;
+    public static final int ALP = 2;
+    public static final int STATUS = 3;
+    public static final int PAGES = 4;
 
     /* Палитра оверлея: максимальный контраст, никакого «приглушённого». */
     private static final int FG = 0xFFFFFFFF;
@@ -64,6 +74,14 @@ public final class DiagOverlay {
         bridge = b;
     }
 
+    /** Сборщик кадров трансляции ALP3 — отдельная страница, отдельный поток
+     *  данных, никак не пересекается с каналами телеметрии. */
+    private static com.q50gtr.plus.net.AlpFrameAssembler alp;
+
+    public static void setAlp(com.q50gtr.plus.net.AlpFrameAssembler a) {
+        alp = a;
+    }
+
     public static void setVersion(String v) {
         version = v == null ? "?" : v;
     }
@@ -74,6 +92,8 @@ public final class DiagOverlay {
         if (page == BRIDGE) {
             drawBridge(c, t, l, hub);
             drawButton(c, t, l, buttonLabel(BRIDGE));
+        } else if (page == ALP) {
+            drawAlp(c, t, l, nowMs);
         } else {
             drawStatus(c, t, l, hub, probe, display, nowMs);
         }
@@ -150,6 +170,79 @@ public final class DiagOverlay {
             colour[n] = ERR; text[n++] = "ОШИБКА: " + b.getLastError();
         }
         panel(c, t, l, text, colour, n, 1);
+    }
+
+    /**
+     * ALP3: последний собранный кадр экрана телефона, во весь доступный
+     * прямоугольник, с одной строкой состояния сверху и снизу.
+     *
+     * Это трансляция изображения, а не канал данных: ни один пиксель отсюда
+     * не превращается в число и не идёт в {@link DataHub}
+     * (docs/ALP-MIRROR-PROTOCOL.md, docs/AIRLIFT-ALP3.md). Если кадров ещё
+     * не было — говорит об этом прямо, а не рисует чёрный прямоугольник,
+     * который легко принять за зависший экран.
+     */
+    private static void drawAlp(Canvas c, Theme t, Layout l, long nowMs) {
+        float pad = 8f * l.s;
+        float top = 50f * l.s;
+        float bottom = l.h - 8f * l.s;
+        float x = 8f * l.s;
+        float y = top;
+        float w = l.w - 16f * l.s;
+        float h = bottom - top;
+
+        t.rect.set(x, y, x + w, y + h);
+        c.drawRoundRect(t.rect, 4f, 4f, t.fill(BG));
+        c.drawRoundRect(t.rect, 4f, 4f, t.stroke(KEY, 1.5f));
+
+        float lh = 26f * l.s;
+        float size = lh * 0.78f;
+
+        if (alp == null) {
+            c.drawText("ALP3: сборщик кадров не создан", x + w * 0.5f, y + h * 0.5f,
+                    t.text(ERR, size, Paint.Align.CENTER, false));
+            return;
+        }
+
+        Bitmap bmp = alp.getLatestBitmap();
+        long ageMs = alp.getAgeMs(nowMs);
+        if (bmp == null || bmp.isRecycled()) {
+            c.drawText("ALP3: кадров ещё не было", x + w * 0.5f, y + h * 0.5f - lh,
+                    t.text(HOT, size, Paint.Align.CENTER, false));
+            c.drawText("на телефоне: запустите Q50 ALP3 Bridge, откройте ALP3",
+                    x + w * 0.5f, y + h * 0.5f, t.text(DIM, size * 0.85f, Paint.Align.CENTER, false));
+        } else {
+            // Кадр вписывается в прямоугольник целиком, без обрезки: лучше
+            // поля по краям, чем срезанная часть экрана телефона.
+            float innerX = x + pad;
+            float innerY = y + pad + lh;
+            float innerW = w - 2f * pad;
+            float innerH = h - 2f * pad - 2f * lh;
+            float k = Math.min(innerW / bmp.getWidth(), innerH / bmp.getHeight());
+            float dw = bmp.getWidth() * k;
+            float dh = bmp.getHeight() * k;
+            float dx = innerX + (innerW - dw) * 0.5f;
+            float dy = innerY + (innerH - dh) * 0.5f;
+            Rect src = new Rect(0, 0, bmp.getWidth(), bmp.getHeight());
+            RectF dst = new RectF(dx, dy, dx + dw, dy + dh);
+            c.drawBitmap(bmp, src, dst, null);
+        }
+
+        boolean fresh = ageMs >= 0 && ageMs < 2000L;
+        String age = ageMs < 0 ? "нет кадров" : ageMs + "мс назад";
+        c.drawText("ALP3: трансляция экрана телефона   " + version,
+                x + pad, y + lh * 0.68f, t.text(KEY, size, Paint.Align.LEFT, false));
+        c.drawText(fresh ? "ЖИВОЙ" : "НЕТ СВЯЗИ", x + w - pad, y + lh * 0.68f,
+                t.text(fresh ? OK : ERR, size, Paint.Align.RIGHT, false));
+
+        String stats = "кадр=" + alp.getLatestFrameId()
+                + "  " + age
+                + "  fps=" + Channel.format(alp.getFps(), 1)
+                + "  " + alp.getLatestWidth() + "x" + alp.getLatestHeight()
+                + "  потеряно=" + alp.getFramesDropped()
+                + "  битых=" + alp.getFramesBroken();
+        c.drawText(stats, x + w * 0.5f, y + h - lh * 0.30f,
+                t.text(DIM, size * 0.85f, Paint.Align.CENTER, false));
     }
 
     private static void drawStatus(Canvas c, Theme t, Layout l, DataHub hub,

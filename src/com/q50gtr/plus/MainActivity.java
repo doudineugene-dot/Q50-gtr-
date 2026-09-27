@@ -42,6 +42,7 @@ public final class MainActivity extends Activity {
     private VehicleProbe probe;
     private EcuTekLiveSource ecuTek;
     private com.q50gtr.plus.net.BridgeSource bridge;
+    private com.q50gtr.plus.net.AlpFrameAssembler alpFrames;
     private TransportProbe transport;
     private final EcuTekRawLog rawLog = new EcuTekRawLog();
     private final Handler handler = new Handler();
@@ -79,6 +80,11 @@ public final class MainActivity extends Activity {
 
         ecuTek = new EcuTekLiveSource(this, rawLog);
         bridge = new com.q50gtr.plus.net.BridgeSource();
+        // Трансляция экрана ALP3 (docs/ALP-MIRROR-PROTOCOL.md) — отдельный
+        // сборщик поверх того же приёмника, а не отдельный сокет: протокол
+        // сам различает свои пакеты от телеметрии по сигнатуре.
+        alpFrames = new com.q50gtr.plus.net.AlpFrameAssembler();
+        bridge.setAlpAssembler(alpFrames);
         hub = new DataHub(new InTouchVehicleSource(this), ecuTek,
                 new AirLiftLiveSource(), new DemoDataProvider(), bridge);
         com.q50gtr.plus.ui.DiagOverlay.setVersion(versionName());
@@ -88,6 +94,7 @@ public final class MainActivity extends Activity {
         transport = new TransportProbe(this);
         com.q50gtr.plus.ui.DiagOverlay.setTransport(transport);
         com.q50gtr.plus.ui.DiagOverlay.setBridge(bridge);
+        com.q50gtr.plus.ui.DiagOverlay.setAlp(alpFrames);
         new Thread(new Runnable() {
             public void run() {
                 try {
@@ -279,6 +286,14 @@ public final class MainActivity extends Activity {
         b.append('\n');
         b.append("DATA SOURCE      = ").append(hub.getSourceLabel()).append('\n');
         b.append("MODE             = ").append(hub.isLive() ? "LIVE" : "DEMO").append('\n');
+        if (alpFrames != null) {
+            b.append("ALP3 MIRROR      = кадр=").append(alpFrames.getLatestFrameId())
+                    .append(" собрано=").append(alpFrames.getFramesCompleted())
+                    .append(" потеряно=").append(alpFrames.getFramesDropped())
+                    .append(" битых=").append(alpFrames.getFramesBroken())
+                    .append(" fps=").append(alpFrames.getFps())
+                    .append('\n');
+        }
         b.append('\n').append("-- КАНАЛЫ --\n");
         Channel[] all = hub.getData().allChannels();
         long now = System.currentTimeMillis();

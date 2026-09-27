@@ -27,4 +27,15 @@ public final class BitmapFactory {
             return null;
         }
     }
+
+    /* Только для AlpFrameAssembler — офлайн-рендер трёх утверждённых страниц
+     * этот путь не проходит, а компилировать дерево целиком без него нельзя. */
+    public static Bitmap decodeByteArray(byte[] data, int offset, int length) {
+        try {
+            return new Bitmap(ImageIO.read(
+                    new java.io.ByteArrayInputStream(data, offset, length)));
+        } catch (Exception e) {
+            return null;
+        }
+    }
 }

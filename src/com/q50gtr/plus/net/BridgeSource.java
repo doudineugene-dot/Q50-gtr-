@@ -55,6 +55,14 @@ public final class BridgeSource implements DataSource {
     private Thread worker;
     private volatile boolean running;
 
+    /** Сборщик кадров трансляции экрана ALP3 — отдельная возможность, не
+     *  канал телеметрии. Может остаться null, если её никто не включил. */
+    private volatile AlpFrameAssembler alp;
+
+    public void setAlpAssembler(AlpFrameAssembler a) {
+        alp = a;
+    }
+
     private volatile int packets;
     private volatile long lastRxMs;
     private volatile String lastError;
@@ -570,6 +578,16 @@ public final class BridgeSource implements DataSource {
                     lastError = "приём: " + t;
                 }
                 break;
+            }
+            // Кадры трансляции ALP3 (docs/ALP-MIRROR-PROTOCOL.md) идут по
+            // тому же порту, что и текстовая телеметрия, но это двоичные
+            // пакеты с сигнатурой в первых четырёх байтах. Проверка идёт до
+            // попытки разобрать текст, и при совпадении телеметрия этой
+            // веткой вообще не задета: ни parse(), ни счётчики packets/
+            // lastSender ничего не знают о трансляции экрана.
+            if (alp != null && AlpFrameAssembler.looksLikeFrame(p.getData(), p.getLength())) {
+                alp.offer(p.getData(), p.getLength());
+                continue;
             }
             try {
                 parse(new String(p.getData(), 0, p.getLength(), "UTF-8"));

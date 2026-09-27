@@ -1,7 +1,7 @@
 # Версия и имя файла сборки — единственное место, где они задаются.
 
 # Совпадает с android:versionName в AndroidManifest.xml; build.sh это проверяет.
-VERSION="0.9.20-auto"
+VERSION="0.9.21-alp-mirror"
 
 # Номер сборки: в CI — номер прогона (растёт сам), локально — дата и время.
 if [ -n "${GITHUB_RUN_NUMBER:-}" ]; then
