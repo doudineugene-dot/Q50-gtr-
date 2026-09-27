@@ -56,7 +56,12 @@ jobs:
         id: find
         run: |
           set -euo pipefail
-          APK=$(find app/build/outputs/apk/debug -name '*.apk' | head -1)
+          # actions/upload-artifact ниже не наследует working-directory
+          # этого джоба (defaults.run.working-directory действует только на
+          # шаги run:), поэтому путь для него нужен от корня репозитория —
+          # ровно это и стоило первой попытке: путь без companion/AlpBridge/
+          # был верным здесь и пустым там.
+          APK="companion/AlpBridge/$(find app/build/outputs/apk/debug -name '*.apk' | head -1)"
           echo "APK=$APK" >> "$GITHUB_ENV"
           echo "Собрано: $APK"
 
