@@ -92,7 +92,8 @@ observer `ru.q50.ecutekprobe` с отдельным workflow `bluetooth-probe.ym
 reassembly/LE CoC PSM/CID analysis и статический legacy x86 host helper.
 Тест этой поставки: `docs/BLUETOOTH-PROBE-NEXT-TEST.md` (пять действий).
 Существующий 30-секундный `ru.q50.codexprobe` сохранён как отдельный инструмент;
-их APK с одинаковым именем различаются package и workflow provenance.
+их APK различаются именами, package и workflow provenance: 90с —
+Q50-Codex-EcuTek-Probe, 30с — Q50-Codex-DCU-Recon.
 Для следующего автомобильного теста использовать 90-секундный observer из
 артефакта **Q50-BuiltIn-Bluetooth-Probe-APK-EPK**. Live gate не изменён.
 

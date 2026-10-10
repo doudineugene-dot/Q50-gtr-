@@ -6,7 +6,7 @@
 API10/10, 90с фонового сбора, четыре inventories, HCIGETCONNLIST, JSONL RAW
 observer и offline HCI/ACL/LE CoC analyzer. Сборка отдельным workflow
 `bluetooth-probe.yml`; следующий тест `docs/BLUETOOTH-PROBE-NEXT-TEST.md`.
-Оба probe сохранены; не путать одноимённые APK из разных CI artifacts.
+Оба probe сохранены: 90с Q50-Codex-EcuTek-Probe, 30с Q50-Codex-DCU-Recon.
 Для 90с observer выбирать **Q50-BuiltIn-Bluetooth-Probe-APK-EPK**.
 RPM/Boost=UNAVAILABLE, discovery/connect=UNKNOWN. On-car gate не пройден.
 
