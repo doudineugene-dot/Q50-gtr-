@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")"
-: "${Q50_NDK:?Set Q50_NDK to official Android NDK r16b}"
+: "${Q50_NDK:?Set Q50_NDK to official Android NDK r10e}"
+test -d "$Q50_NDK/platforms/android-9/arch-x86"
+test -d "$Q50_NDK/platforms/android-9/arch-arm"
 mkdir -p .cache build/classes build/gen artifact
 JAR=../codex-phase1/.cache/android-2.3.3.jar
 mkdir -p ../codex-phase1/.cache
 if [ ! -f "$JAR" ]; then curl -fsSL --max-time 120 https://repo.maven.apache.org/maven2/com/google/android/android/2.3.3/android-2.3.3.jar -o "$JAR"; fi
 echo "638a4f8a6f31cdfd40699cc0a7e2fe90057f52dab88a8224585aae08ca055d5f  $JAR" | sha256sum -c -
-"$Q50_NDK/ndk-build" NDK_PROJECT_PATH="$PWD" APP_BUILD_SCRIPT="$PWD/native/Android.mk" NDK_APPLICATION_MK="$PWD/native/Application.mk"
+"$Q50_NDK/ndk-build" NDK_TOOLCHAIN_VERSION=4.9 NDK_PROJECT_PATH="$PWD" APP_BUILD_SCRIPT="$PWD/native/Android.mk" NDK_APPLICATION_MK="$PWD/native/Application.mk"
 test -f libs/x86/libq50btprobe.so
 test -f libs/armeabi-v7a/libq50btprobe.so
 aapt package -f -M AndroidManifest.xml -S res -I "$JAR" -J build/gen -F build/unsigned.apk
@@ -82,7 +84,7 @@ printf '%s\n' "$MODE" > artifact/signing-mode.txt
   echo "signing=$MODE"
   echo "run=${GITHUB_SERVER_URL:-https://github.com}/${GITHUB_REPOSITORY:-local}/actions/runs/${GITHUB_RUN_ID:-local}"
   java -version 2>&1
-  cat "$Q50_NDK/source.properties"
+  cat "$Q50_NDK/RELEASE.TXT"
   aapt version; d8 --version; apksigner --version
 } > artifact/BUILD-PROVENANCE.txt
 (cd artifact && sha256sum Q50-Codex-EcuTek-Probe.apk Q50-Codex-EcuTek-Probe.epk Q50-btprobe-linux-x86 > SHA256SUMS && sha256sum -c SHA256SUMS)

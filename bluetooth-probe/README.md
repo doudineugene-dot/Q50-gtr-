@@ -48,11 +48,13 @@ No speculative removable path is written. Files are not automatically deleted.
 ## Build / analysis
 
 Linux JDK17, build-tools33.0.2, Python3.12+cryptography44.0.2, gcc-multilib,
-official NDK r16b (archive SHA1 `42aa43aae89a50d1c66c3f9fdecd676936da6128`):
+official NDK r10e with explicit GCC4.9 (archive SHA256
+`ee5f405f3b57c4f5c3b3b8b5d495ae12b660e03d2112e4ed5c728d349f1e520c`,
+recorded by [F-Droid's archive transparency log](https://gitlab.com/fdroid/android-sdk-transparency-log/-/blob/master/checksums.json)):
 
 ```sh
 bash bluetooth-probe/test.sh
-Q50_NDK=/path/to/android-ndk-r16b bash bluetooth-probe/build.sh
+Q50_NDK=/path/to/android-ndk-r10e bash bluetooth-probe/build.sh
 python3 bluetooth-probe/tools/analyze_hci.py /path/to/unpacked/hci-packets.jsonl
 ```
 
@@ -62,6 +64,10 @@ both production and the Phase1 dashboard. Persistent signing uses existing CI
 secrets; otherwise temporary is explicit. API29 x86 emulator checks actual JNI
 load, background completion, denials, and exported ZIP. It cannot prove API10,
 DCU permissions, controller type, EVI discovery, or EcuTek transport.
+
+NDK r16b was rejected after CI showed its automatic android-9 -> android-14
+substitution. The build now requires real android-9 platform directories before
+running ndk-build. Do not accept a modern NDK's silent platform floor.
 
 `Q50-btprobe-linux-x86` is a static ELF32 host-Linux fallback from the same C
 source. With an already available host shell, run it as the current user:

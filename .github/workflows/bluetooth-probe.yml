@@ -30,10 +30,10 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y gcc-multilib
           mkdir -p bluetooth-probe/.cache
-          curl -fsSL --retry 3 --max-time 600 https://dl.google.com/android/repository/android-ndk-r16b-linux-x86_64.zip -o bluetooth-probe/.cache/ndk.zip
-          echo '42aa43aae89a50d1c66c3f9fdecd676936da6128  bluetooth-probe/.cache/ndk.zip' | sha1sum -c -
+          curl -fsSL --retry 3 --max-time 600 https://dl.google.com/android/repository/android-ndk-r10e-linux-x86_64.zip -o bluetooth-probe/.cache/ndk.zip
+          echo 'ee5f405f3b57c4f5c3b3b8b5d495ae12b660e03d2112e4ed5c728d349f1e520c  bluetooth-probe/.cache/ndk.zip' | sha256sum -c -
           unzip -q bluetooth-probe/.cache/ndk.zip -d bluetooth-probe/.cache
-          echo "Q50_NDK=$GITHUB_WORKSPACE/bluetooth-probe/.cache/android-ndk-r16b" >> "$GITHUB_ENV"
+          echo "Q50_NDK=$GITHUB_WORKSPACE/bluetooth-probe/.cache/android-ndk-r10e" >> "$GITHUB_ENV"
       - name: Existing dashboard regression checks
         run: bash codex-phase1/test.sh
       - name: Evidence, HCI framing and native observer checks
