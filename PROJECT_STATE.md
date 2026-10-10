@@ -1,5 +1,22 @@
 # Q50 GTR+ Codex — состояние проекта
 
+## Проверенная поставка 2026-10-11
+
+90с observer `ru.q50.ecutekprobe`: tested commit `07f095238fcdc9a34e2a9b8d9a88a62f37e649c5`,
+[CI build/emulator SUCCESS](https://github.com/doudineugene-dot/Q50-gtr-/actions/runs/38070795928).
+30с Recon + dashboard: tested commit `c084c86ab4121eea4034a23fdbd652312f1a14f0`,
+[CI build/emulator SUCCESS](https://github.com/doudineugene-dot/Q50-gtr-/actions/runs/38070384927).
+Артефакты/хэши/границы проверок: [TEST_RESULTS.md](TEST_RESULTS.md).
+
+Вывод исследования: Gen1 может разделять Android и MeeGo host; первичные дампы
+дают конкретные naviwork daemons/DBus/vendor modules для поиска. Они не дают
+доказанный vendor API, LE CoC backport или протокол EcuTek данного автомобиля.
+Public API10/старый L2CAP socket сам по себе milestone не закрывает. Реализованы
+passive RAW capture, ioctl/controller/handle probes, namespace/process/socket/library
+inventory, offline ACL/CoC analyzer и static API9 host helper. PSM не фиксирован,
+UUID/ECU packet bytes/каналы RPM/Boost не выдуманы. EcuTek transport пока UNKNOWN,
+RPM/Boost UNAVAILABLE. Следующий gate — [одна 90с запись VR30 session](docs/BLUETOOTH-PROBE-NEXT-TEST.md).
+
 ## Итерация штатного Bluetooth / EcuTek 2026-10-10
 
 Расширение: изолированный `bluetooth-probe/`, package `ru.q50.ecutekprobe`,

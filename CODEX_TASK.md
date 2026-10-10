@@ -1,5 +1,22 @@
 # Задача Codex — Phase 2: direct EcuTek transport
 
+## Итог автономной итерации 2026-10-11
+
+Исследование и diagnostic stage выполнены; live milestone ниже остаётся открытым.
+Поставка: 90с `Q50-Codex-EcuTek-Probe.apk/.epk`, static `Q50-btprobe-linux-x86`,
+offline HCI/ACL/LE CoC analyzer; дополнительный 30с `Q50-Codex-DCU-Recon.apk/.epk`
+с доступным VR30 APK export. Оба build/emulator CI SUCCESS, ссылки и SHA256 в
+[TEST_RESULTS.md](TEST_RESULTS.md). Основной tested commit `07f095238fcdc9a34e2a9b8d9a88a62f37e649c5`.
+
+Следующая итерация начинается с [одного install/run/export](docs/BLUETOOTH-PROBE-NEXT-TEST.md),
+не с догадок о BluetoothAdapter. Нужны фактические PID/maps/socket/namespace,
+controller/handle и CoC signalling во время подтверждённого VR30 RPM, либо его
+легально полученный APK/EPK с actual vendor binding. При EPERM/hidden host:
+static helper + host inventory только через уже доступный authorized shell;
+нет root acquisition, драйверов или внешнего Bluetooth. После доказанного transport
+изучить discovery динамического PSM, authentication/framing, read-only RPM channel
+и disconnect/stale; только затем Boost Actual и absolute/gauge units.
+
 Phase 1 infrastructure is accepted. Do **not** spend the next iteration on final graphics or a car install that has no EcuTek data.
 
 Read first:

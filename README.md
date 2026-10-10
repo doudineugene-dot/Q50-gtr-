@@ -1,5 +1,10 @@
 # Q50 GTR+
 
+Текущая Codex-ветка: [состояние](PROJECT_STATE.md), [результаты](TEST_RESULTS.md),
+[следующий автомобильный тест](NEXT_TEST.md). Исследование штатного Bluetooth
+и отдельный API10 пробник: [bluetooth-probe](bluetooth-probe/README.md).
+Ниже сохранено описание исходного приложения v0.7.
+
 Дополнительная приборная панель для штатного головного устройства
 Infiniti Q50 2017 (InTouch / DCU Gen1).
 

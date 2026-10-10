@@ -1,5 +1,45 @@
 # Отчёт — Q50 GTR+ Codex, Phase 1
 
+## Финальная проверка Bluetooth-итерации — 2026-10-11 (Asia/Barnaul)
+
+Проверенный observer commit: `07f095238fcdc9a34e2a9b8d9a88a62f37e649c5`.
+[Build + emulator SUCCESS](https://github.com/doudineugene-dot/Q50-gtr-/actions/runs/38070795928).
+[APK/EPK + static host helper + provenance/checksums](https://github.com/doudineugene-dot/Q50-gtr-/actions/runs/38070795928/artifacts/11676656880).
+[Android screenshot, logcat и экспортированный evidence ZIP](https://github.com/doudineugene-dot/Q50-gtr-/actions/runs/38070795928/artifacts/11676483770).
+
+Проверенный dashboard + DCU Recon commit: `c084c86ab4121eea4034a23fdbd652312f1a14f0`.
+[Build + emulator SUCCESS](https://github.com/doudineugene-dot/Q50-gtr-/actions/runs/38070384927).
+[Dashboard и Recon APK/EPK](https://github.com/doudineugene-dot/Q50-gtr-/actions/runs/38070384927/artifacts/11676885745).
+[Android captures и завершённый Recon report](https://github.com/doudineugene-dot/Q50-gtr-/actions/runs/38070384927/artifacts/11677080741).
+
+CI: 183 dashboard checks/24 renders, **17 ProbeChecks**, mocked native capability/errno fixtures,
+bounded EvidenceIO/ZIP/USB/process checks, **7 HCI framing tests**, native Linux execution,
+EPK crypto roundtrip/structure, API10 Java7 compile, actual API9 x86/ARM JNI,
+DEX035/v1 signature/zipalign — PASS. Static ELF32 helper собран legacy bionic,
+без ELF interpreter, выполнен в Linux CI; это не подтверждение запуска на DCU.
+API29 emulator: dashboard lifecycle regression, Recon JNI/три snapshots/COMPLETE/export,
+observer JNI/background completion/export ZIP — PASS; нет FATAL EXCEPTION.
+В observer harness исправлен повторный launch после ReviewPermissionsActivity:
+теперь новый процесс получает короткий test interval. APK targetSdk остаётся 10.
+
+Архивы скачаны в `artifact/final-observer-07f/` и `artifact/final-recon/`,
+каждый SHA256 повторно проверен. Подпись persistent, сертификат
+`f1b298035bde56521aa6888c14281e190df1abc13dfd21a0cff8d0fecaea8e84`.
+
+```text
+5c2ec1251b0e2fd59354e9737517a2f5a0fc29f34f7cdf08ac33bd923010dab9  Q50-Codex-EcuTek-Probe.apk
+cdc1c4dfa7b874a064e818fde6a50e0291f51bc26208ebb746fa0080d35ea5d8  Q50-Codex-EcuTek-Probe.epk
+07c936d2a958ad414005ed5bfd3296a8a81a6282a3d02861774f5bc1b2a177b2  Q50-btprobe-linux-x86
+ce132859f3b2ca83def71733e33cc18c46f43213e7de980f353ea0a502899882  Q50-Codex-DCU-Recon.apk
+0895e9e15735a57a2cee34a53d8b39b0db19d89b229649223eed0eae73928774  Q50-Codex-DCU-Recon.epk
+```
+
+**Физический API10/DCU/EVI не проверен.** Нет измеренного EVI discovery/connect,
+PSM discovery/auth/session framing, ECUTEK RPM или Boost Actual. Пользовательские
+log22/VR30 наблюдения не подменены emulator evidence. Следующий минимальный тест:
+[90с с VR30 connect/disconnect](docs/BLUETOOTH-PROBE-NEXT-TEST.md).
+Ниже сохранена история предыдущих проверок; этот раздел имеет приоритет.
+
 ## Итерация EcuTek/DCU 2026-10-10
 
 Дополнительный 90с observer: `bluetooth-probe/`, `ru.q50.ecutekprobe`.
@@ -11,11 +51,11 @@ pinned CI, а не считаются локально пройденными. J
 JDK17 release7. Новая native часть: GET connection list и legacy RAW sockaddr,
 16MiB JSONL cap, ACL fragmentation/direction/handle separation, observed CoC
 request/response metadata. Тестовые пакеты — стандартные Bluetooth fixtures,
-не EcuTek data. Новая CI поставка будет зафиксирована после сборки ниже.
+не EcuTek data. Финальные CI результаты зафиксированы в верхнем разделе.
 
 Новый probe ru.q50.codexprobe, API10/10, Q50-Codex-DCU-Recon.apk/.epk. Только BLUETOOTH + WRITE_EXTERNAL_STORAGE; dashboard сохраняет zero permissions. Нет scan/pair/remote-connect/ECU-запросов. HCI RAW listener только читает, ограничен 30 сек/4096 пакетов; данные не выдаются за EVI RX/telemetry.
 
-Локально JDK27: 14 ProbeChecks PASS, включая safe USB mount parsing. --release7 отсутствует в JDK27; Java7/API10 компиляция выполняется pinned JDK17 CI. Native fixtures: errno denial, returned controller ID, cached LE bit, L2CAP non-proof, закрытие FD, output boundary. Обязательны 183 host checks, EPK crypto roundtrip и emulator workflow. Новый emulator check требует JNI load, три снимка, COMPLETE и export files, отсутствие FATAL EXCEPTION. NDK переключён на r10e/GCC4.9 с проверкой actual API9 platform directories; новый NDK не должен молча поднять native minimum API.
+Локально JDK27: 17 ProbeChecks PASS, включая safe USB mount parsing. --release7 отсутствует в JDK27; Java7/API10 компиляция выполняется pinned JDK17 CI. Native fixtures: errno denial, returned controller ID, cached LE bit, L2CAP non-proof, закрытие FD, output boundary. Обязательны 183 host checks, EPK crypto roundtrip и emulator workflow. Новый emulator check требует JNI load, три снимка, COMPLETE и export files, отсутствие FATAL EXCEPTION. NDK переключён на r10e/GCC4.9 с проверкой actual API9 platform directories; новый NDK не должен молча поднять native minimum API.
 
 Физический DCU/EVI не подключён к этой сессии. Discovery/connect, EVI PSM/CID/handle, RX rate, ECUTEK RPM/Boost не получены. log22.zip и VR30 DASH APK отсутствуют в tracked files; сведения пользователя не выдаются за собственные измерения.
 

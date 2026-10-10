@@ -1,5 +1,23 @@
 # Штатный Bluetooth DCU — 2026-10-10
 
+## Итог 2026-10-11
+
+Реализованные пути: Android signatures/inventory, JNI AF_BLUETOOTH + GET ioctls,
+passive RAW HCI, `/proc` inode/PID/maps и host namespace comparison; static x86
+API9 bionic observer для уже доступного host shell. Подтверждённого public VR30
+DASH APK/vendor API не найдено в проверенных источниках. Это результат поиска,
+не утверждение об отсутствии артефакта. [Обе сборки и оба emulator checks прошли](../TEST_RESULTS.md).
+
+Основной 90с observer tested commit `07f095238fcdc9a34e2a9b8d9a88a62f37e649c5`:
+на API29 x86 JNI loaded, service завершился в фоне, ZIP экспортирован. Recon
+собрал три снимка. Android permission denial записывается как denial, не как
+отсутствие встроенного Bluetooth. Ни один CI тест не устанавливает stock DCU ->
+EVI-BT R9 -> ECUTEK RPM. Неизвестны actual vendor binding/backport/privileges,
+PSM discovery, authentication/packet framing и RPM/Boost decoding.
+[Минимальный следующий тест](BLUETOOTH-PROBE-NEXT-TEST.md) снимает соединение
+и отключение работающего VR30; фактический CoC request не считается успешной
+EVI-сессией без peer attribution/response. Секреты pairing/private databases не собираются.
+
 По issue #11 владелец наблюдал VR30 DASH 0.5.4, соединённый напрямую с EcuTek на штатном DCU, без телефона/USB/UDP/зеркалирования. Это свидетельство владельца; сетевые логи, UUID/PSM/каналы и пакеты в этой фазе не получены.
 
 Отрицательный результат стандартного BluetoothAdapter не доказывает невозможность Bluetooth на DCU. Фаза 3 должна исследовать vendor/hidden Android API, native/JNI, AF_BLUETOOTH, L2CAP/RFCOMM/HCI, BlueZ, Ygomi/Infiniti services/daemons, /proc/net/bluetooth и принадлежность сокетов PID.
