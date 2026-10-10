@@ -27,6 +27,7 @@ PY
 done
 # Relaunch with the test interval after system dialogs so the background test
 # starts in the application, not in ReviewPermissionsActivity.
+adb shell am force-stop ru.q50.ecutekprobe
 adb logcat -c
 adb shell am start -W -n ru.q50.ecutekprobe/.ProbeActivity --ei seconds 5
 sleep 1
