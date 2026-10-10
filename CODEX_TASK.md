@@ -57,30 +57,29 @@ No ECU writes, flashing, map switching, DTC clearing or protocol-byte invention.
 Do not proceed to Air Lift until this gate passes.
 
 
-## New verified transport option — external USB Bluetooth
+## Transport constraint — built-in DCU Bluetooth only
 
-Read `docs/intouch-gen1-external-leads.md`.
+User has clarified that the target implementation is already known to work **without any external Bluetooth dongle**.
 
-A recent InTouch Gen1 project has now publicly demonstrated:
-- custom Bluetooth drivers;
-- an external Bluetooth dongle attached to the DCU;
-- direct connection from InTouch Gen1 to a Bluetooth OBD adapter;
-- external Wi-Fi dongle + custom drivers;
-- updated TCP stack.
+Therefore the EcuTek path for this project is strictly:
 
-This gives us a second standalone route that does NOT use a phone bridge:
+**stock DCU built-in Bluetooth -> EVI-BT R9 -> live EcuTek telemetry**
 
-**Path A (preferred):** stock DCU Bluetooth -> EVI-BT R9.
+Do not spend development time on:
+- external USB Bluetooth dongles;
+- USB Bluetooth drivers;
+- phone bridges;
+- UDP bridges;
+- screen mirroring.
 
-**Path B (acceptable fallback):** DCU USB host -> external USB Bluetooth controller -> EVI-BT R9.
+The existence of VR30 DASH 0.5.4 on this same stock DCU is the key proof-of-feasibility and should remain the primary reverse-engineering reference.
 
-Do not confuse generic OBD classic Bluetooth success with EVI R9 support. EVI R9 is BTLE, and our target transport is LE L2CAP CoC.
+Immediate research priority:
+1. Identify the exact built-in Bluetooth stack/vendor path available on the DCU.
+2. Determine how VR30 DASH accesses it despite API10 public BLE limitations.
+3. Reproduce EVI discovery/connection read-only.
+4. Obtain real EcuTek RPM.
+5. Obtain real Boost Actual.
+6. Only after those are proven, expand channels and then move to Air Lift.
 
-Immediate Codex research tasks:
-1. Continue Path A reverse engineering.
-2. In parallel, inspect the DCU/kernel/project dumps for USB host, bluetooth USB/HCI drivers, BlueZ/native HCI pieces, kernel modules and firmware.
-3. Search for the Reddit author's promised source release/how-to and exact dongle chipset.
-4. If the stock BT path remains blocked, design an external-dongle probe that can enumerate HCI capabilities and determine whether BLE + LE CoC can be supported.
-5. Do not fall back to phone/UDP unless both standalone paths are proven impossible.
-
-The final success gate remains real EcuTek RPM + Boost Actual on the stock DCU.
+The final success gate remains real EcuTek RPM + Boost Actual on the stock DCU using the built-in Bluetooth subsystem only.
