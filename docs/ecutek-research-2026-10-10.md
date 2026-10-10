@@ -80,3 +80,20 @@ Success = RPM changes with throttle and becomes stale/unavailable when EVI is di
 Second success = Boost Actual changes live from EcuTek.
 
 Until those are proven, do not move to Air Lift integration or final graphics.
+
+## New lead from user — Reddit (needs verification)
+
+User supplied this Reddit thread as potentially relevant to InTouch Gen1 reverse engineering / external Wi-Fi / replacement work:
+
+https://www.reddit.com/r/q50/comments/1wyfemv/full_intouch_gen1_replacement_kinda_external_wifi/
+
+Current ChatGPT web retrieval could not fetch or index the thread, so **do not treat any content from it as verified yet**.
+
+Codex task:
+- inspect the thread if your browser/network can access it;
+- capture the post body, author, comments, images/video links and any GitHub/Drive/repository links;
+- extract only concrete technical details relevant to Gen1 DCU: Wi-Fi hardware, USB host, kernel/driver modules, Android services, CAN/IVI APIs, Bluetooth stack, root access, APK/EPK install, network bridging;
+- follow any linked repositories or files and archive exact technical findings in `docs/intouch-gen1-external-leads.md` with source URLs;
+- distinguish demonstrated hardware facts from speculation.
+
+This lead may be relevant to alternate transport paths if direct BTLE/L2CAP CoC access remains blocked, but it must not replace the primary goal of reproducing direct DCU -> EVI connectivity already demonstrated by VR30 DASH.
