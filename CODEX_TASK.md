@@ -55,3 +55,32 @@ No stock InTouch fallback on this probe screen.
 
 No ECU writes, flashing, map switching, DTC clearing or protocol-byte invention.
 Do not proceed to Air Lift until this gate passes.
+
+
+## New verified transport option — external USB Bluetooth
+
+Read `docs/intouch-gen1-external-leads.md`.
+
+A recent InTouch Gen1 project has now publicly demonstrated:
+- custom Bluetooth drivers;
+- an external Bluetooth dongle attached to the DCU;
+- direct connection from InTouch Gen1 to a Bluetooth OBD adapter;
+- external Wi-Fi dongle + custom drivers;
+- updated TCP stack.
+
+This gives us a second standalone route that does NOT use a phone bridge:
+
+**Path A (preferred):** stock DCU Bluetooth -> EVI-BT R9.
+
+**Path B (acceptable fallback):** DCU USB host -> external USB Bluetooth controller -> EVI-BT R9.
+
+Do not confuse generic OBD classic Bluetooth success with EVI R9 support. EVI R9 is BTLE, and our target transport is LE L2CAP CoC.
+
+Immediate Codex research tasks:
+1. Continue Path A reverse engineering.
+2. In parallel, inspect the DCU/kernel/project dumps for USB host, bluetooth USB/HCI drivers, BlueZ/native HCI pieces, kernel modules and firmware.
+3. Search for the Reddit author's promised source release/how-to and exact dongle chipset.
+4. If the stock BT path remains blocked, design an external-dongle probe that can enumerate HCI capabilities and determine whether BLE + LE CoC can be supported.
+5. Do not fall back to phone/UDP unless both standalone paths are proven impossible.
+
+The final success gate remains real EcuTek RPM + Boost Actual on the stock DCU.
