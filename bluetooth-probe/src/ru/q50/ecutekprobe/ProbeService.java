@@ -16,12 +16,26 @@ public final class ProbeService extends Service {
         if(running)return START_NOT_STICKY;
         final int seconds=Math.max(5,Math.min(90,intent==null?90:intent.getIntExtra("seconds",90)));
         running=true;progress="Сбор начат: "+seconds+" с. Можно открыть VR30 DASH.";
-        Notification notification=new Notification(android.R.drawable.stat_notify_sync,"Q50: пассивная диагностика",System.currentTimeMillis());
-        notification.setLatestEventInfo(this,"Q50 EcuTek Probe","Сбор в фоне; команды ECU не отправляются",
-            PendingIntent.getActivity(this,0,new Intent(this,ProbeActivity.class),0));
-        startForeground(1,notification);
+        try {startForeground(1,notification());}
+        catch(Exception e){running=false;progress="Ошибка notification: "+e;Log.e(TAG,progress);stopSelf();return START_NOT_STICKY;}
         new Thread(new Runnable(){public void run(){collect(seconds);}},"q50-evidence").start();
         return START_NOT_STICKY;
+    }
+    private Notification notification() throws Exception {
+        PendingIntent content=PendingIntent.getActivity(this,0,new Intent(this,ProbeActivity.class),0);
+        if(Build.VERSION.SDK_INT<11){
+            Notification n=new Notification(android.R.drawable.stat_notify_sync,"Q50: пассивная диагностика",System.currentTimeMillis());
+            Notification.class.getMethod("setLatestEventInfo",Context.class,CharSequence.class,CharSequence.class,PendingIntent.class)
+                .invoke(n,this,"Q50 EcuTek Probe","Сбор в фоне; команды ECU не отправляются",content);return n;
+        }
+        // Keep API10 compile/runtime while supporting the newer test emulator.
+        Class<?> type=Class.forName("android.app.Notification$Builder");
+        Object builder=type.getConstructor(Context.class).newInstance(this);
+        type.getMethod("setSmallIcon",Integer.TYPE).invoke(builder,android.R.drawable.stat_notify_sync);
+        type.getMethod("setContentTitle",CharSequence.class).invoke(builder,"Q50 EcuTek Probe");
+        type.getMethod("setContentText",CharSequence.class).invoke(builder,"Сбор в фоне; команды ECU не отправляются");
+        type.getMethod("setContentIntent",PendingIntent.class).invoke(builder,content);
+        return (Notification)type.getMethod("getNotification").invoke(builder);
     }
     private void collect(final int seconds) {
         Thread nativeThread=null;

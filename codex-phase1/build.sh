@@ -46,12 +46,18 @@ grep -q "package: name='$PACKAGE'" artifact/badging.txt
 grep -q "^sdkVersion:'10'" artifact/badging.txt
 grep -q "^targetSdkVersion:'10'" artifact/badging.txt
 # Exact read-only diagnostic permission allowlist; no network/admin permissions.
-Q50_PROBE="${Q50_PROBE:-0}" python3 - <<'PY'
+Q50_PROBE="${Q50_PROBE:-0}" Q50_MANIFEST="$MANIFEST" python3 - <<'PY'
 import re
 import os
+import xml.etree.ElementTree as ET
 text=open('artifact/badging.txt').read()
 expected={'android.permission.BLUETOOTH','android.permission.WRITE_EXTERNAL_STORAGE'} if os.environ['Q50_PROBE']=='1' else set()
-assert set(re.findall(r"uses-permission: name='([^']+)'",text))==expected
+declared={e.attrib['{http://schemas.android.com/apk/res/android}name'] for e in ET.parse(os.environ['Q50_MANIFEST']).getroot().findall('uses-permission')}
+assert declared==expected
+observed=set(re.findall(r"^uses-permission: name='([^']+)'",text,re.M))
+assert expected <= observed <= expected|({'android.permission.READ_EXTERNAL_STORAGE'} if expected else set())
+if 'android.permission.READ_EXTERNAL_STORAGE' in observed:
+    assert "uses-implied-permission: name='android.permission.READ_EXTERNAL_STORAGE' reason='requested WRITE_EXTERNAL_STORAGE'" in text
 PY
 Q50_APK="$APK" python3 - <<'PY'
 import zipfile

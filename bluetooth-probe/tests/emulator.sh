@@ -7,6 +7,7 @@ trap 'adb logcat -d > "$OUT/logcat.txt"' EXIT
 adb install -r artifact/Q50-Codex-EcuTek-Probe.apk
 adb logcat -c
 adb shell am start -W -n ru.q50.ecutekprobe/.ProbeActivity --ei seconds 5
+python3 ../tools/dismiss_legacy_android.py "$OUT"
 sleep 3
 adb shell input keyevent 66
 for attempt in 1 2 3 4; do

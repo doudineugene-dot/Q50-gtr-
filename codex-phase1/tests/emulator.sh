@@ -80,6 +80,7 @@ echo "PASS: Android API 29 emulator; measured View $SIZE; all 3 LIVE + DEMO page
 adb install -r artifact/Q50-Codex-DCU-Recon.apk
 adb shell pm grant ru.q50.codexprobe android.permission.WRITE_EXTERNAL_STORAGE
 adb shell am start -W -n ru.q50.codexprobe/ru.q50.codex.ProbeActivity
+python3 ../tools/dismiss_legacy_android.py "$OUT"
 adb shell input keyevent 66
 sleep 2
 adb shell input keyevent 66
