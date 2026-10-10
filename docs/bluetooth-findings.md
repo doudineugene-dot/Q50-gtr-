@@ -19,6 +19,18 @@ Process dump показывает system DBus, `/home/naviwork/system/bin/tel_pr
 
 ## Реализация
 
+Дополнительный изолированный observer: [bluetooth-probe](../bluetooth-probe/README.md)
+и [проверенные первичные ссылки](builtin-bluetooth-recon-2026-10-10.md).
+90с foreground service + четыре snapshots, HCIGETCONNLIST (handle/remote),
+legacy RAW sockaddr prefix, JSONL packets+direction и offline ACL/L2CAP
+reassembly. PSM/CID извлекаются только из наблюдённого LE CoC signalling.
+Request не равен established connection; generic traffic не равен EVI RX.
+Для следующего теста этой поставки — [пять действий](BLUETOOTH-PROBE-NEXT-TEST.md).
+Package `ru.q50.ecutekprobe`, отдельный CI artifact
+**Q50-BuiltIn-Bluetooth-Probe-APK-EPK**; существующий `ru.q50.codexprobe`
+сохранён. Proprietary APK этот observer не копирует; сохраняет path/UID/entry
+names для последующего разрешённого анализа. Live EcuTek gate не пройден.
+
 `codex-phase1/ProbeManifest.xml`, отдельный package ru.q50.codexprobe; API10 Java/DEX035/v1 signature. JNI x86/armeabi-v7a API9; x86_64 API21 для emulator. NDK r16b с официальным archive SHA1.
 
 - No UUID/PSM/ECU packet constants; no scan/pair/remote-connect/send, reset/root/USER-channel takeover.

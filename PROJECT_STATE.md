@@ -2,6 +2,14 @@
 
 ## Итерация штатного Bluetooth / EcuTek 2026-10-10
 
+Расширение: изолированный `bluetooth-probe/`, package `ru.q50.ecutekprobe`,
+API10/10, 90с фонового сбора, четыре inventories, HCIGETCONNLIST, JSONL RAW
+observer и offline HCI/ACL/LE CoC analyzer. Сборка отдельным workflow
+`bluetooth-probe.yml`; следующий тест `docs/BLUETOOTH-PROBE-NEXT-TEST.md`.
+Оба probe сохранены; не путать одноимённые APK из разных CI artifacts.
+Для 90с observer выбирать **Q50-BuiltIn-Bluetooth-Probe-APK-EPK**.
+RPM/Boost=UNAVAILABLE, discovery/connect=UNKNOWN. On-car gate не пройден.
+
 Добавлен отдельный diagnostic APK/EPK `ru.q50.codexprobe` (1.0-dcu-recon, API10/10). Dashboard сохраняет пакет и zero-permission manifest; probe не публикует значения в DataHub. CI собирает оба пакета. Публичные Gen1 дампы показывают MeeGo/i686 + Android, host DBus/naviwork daemons, Ygomi/Connexis packages и vendor bt_hci/bt_dfu. Это evidence другой установки, не идентификация радио данного автомобиля.
 
 Probe: JNI L2CAP/RFCOMM/HCI capability/errno, HCIGETDEVLIST/INFO, FD->socket/PID/maps, три снимка, passive RAW HCI без TX, inventory служб/framework/.so, доступный VR30 APK и shared-storage export. Нет automatic root или USER-channel takeover. HCI может быть скрыт vendor стеком либо недоступен UID; отсутствие пакетов не доказывает отсутствие Bluetooth. EVI transport, real ECUTEK RPM и Boost Actual **не доказаны**. Тест: `docs/DCU-PROBE-NEXT-TEST.md`. Исключены external dongles, phone/UDP bridge/mirroring.

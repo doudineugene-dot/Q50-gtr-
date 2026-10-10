@@ -86,6 +86,16 @@ The final success gate remains real EcuTek RPM + Boost Actual on the stock DCU u
 
 ## Итерация 2026-10-10
 
+Дополнение к диагностике: `bluetooth-probe/` — изолированный 90-секундный
+observer `ru.q50.ecutekprobe` с отдельным workflow `bluetooth-probe.yml`.
+Включает HCIGETCONNLIST, полный ограниченный JSONL HCI capture, offline ACL
+reassembly/LE CoC PSM/CID analysis и статический legacy x86 host helper.
+Тест этой поставки: `docs/BLUETOOTH-PROBE-NEXT-TEST.md` (пять действий).
+Существующий 30-секундный `ru.q50.codexprobe` сохранён как отдельный инструмент;
+их APK с одинаковым именем различаются package и workflow provenance.
+Для следующего автомобильного теста использовать 90-секундный observer из
+артефакта **Q50-BuiltIn-Bluetooth-Probe-APK-EPK**. Live gate не изменён.
+
 Отдельный diagnostic APK/EPK: `codex-phase1/ProbeManifest.xml`, package `ru.q50.codexprobe`; сборка `Q50_PROBE=1 bash codex-phase1/build.sh`. Выход Q50-Codex-EcuTek-Probe.apk/.epk. Инструкция: `docs/DCU-PROBE-NEXT-TEST.md`.
 
 Транспорт/ECUTEK RPM/Boost остаются UNPROVEN. Не подтверждены UUID, получение динамического PSM, handshake и команды чтения. Probe собирает actual native HCI/socket/errno, vendor API signatures, PID/FD/maps, доступный VR30 APK и passive HCI. Это диагностическая поставка, не прохождение blocking milestone. Следующий код определяется этими артефактами, без внешнего BT и без ECU writes.

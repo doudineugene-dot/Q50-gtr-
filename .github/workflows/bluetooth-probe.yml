@@ -1,0 +1,93 @@
+name: Built-in DCU Bluetooth passive probe
+on:
+  push:
+    branches: ['codex/**']
+    paths: ['bluetooth-probe/**', '.github/workflows/bluetooth-probe.yml', 'docs/BLUETOOTH-PROBE-NEXT-TEST.md', 'tools/epktool.py', 'keys/obu_cert.pem']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: ''
+      - name: Install pinned legacy tools
+        run: |
+          sdkmanager 'build-tools;33.0.2' 'platform-tools'
+          echo "$ANDROID_SDK_ROOT/build-tools/33.0.2" >> "$GITHUB_PATH"
+          python3 -m pip install cryptography==44.0.2
+          sudo apt-get update -qq
+          sudo apt-get install -y gcc-multilib
+          mkdir -p bluetooth-probe/.cache
+          curl -fsSL --retry 3 --max-time 600 https://dl.google.com/android/repository/android-ndk-r16b-linux-x86_64.zip -o bluetooth-probe/.cache/ndk.zip
+          echo '42aa43aae89a50d1c66c3f9fdecd676936da6128  bluetooth-probe/.cache/ndk.zip' | sha1sum -c -
+          unzip -q bluetooth-probe/.cache/ndk.zip -d bluetooth-probe/.cache
+          echo "Q50_NDK=$GITHUB_WORKSPACE/bluetooth-probe/.cache/android-ndk-r16b" >> "$GITHUB_ENV"
+      - name: Existing dashboard regression checks
+        run: bash codex-phase1/test.sh
+      - name: Evidence, HCI framing and native observer checks
+        run: bash bluetooth-probe/test.sh
+      - name: Build and verify separate API10 probe APK EPK
+        env:
+          KEYSTORE_B64: ${{ secrets.Q50_KEYSTORE_BASE64 }}
+          Q50_KEY_ALIAS: ${{ secrets.Q50_KEY_ALIAS }}
+          Q50_KEY_PASS: ${{ secrets.Q50_KEY_PASS }}
+        run: |
+          set -euo pipefail
+          if [ -n "$KEYSTORE_B64" ]; then
+            umask 077
+            export Q50_KEYSTORE="$RUNNER_TEMP/probe-signing.keystore"
+            printf '%s' "$KEYSTORE_B64" | base64 -d > "$Q50_KEYSTORE"
+            trap 'rm -f "$Q50_KEYSTORE"' EXIT
+          fi
+          bash bluetooth-probe/build.sh
+          cat bluetooth-probe/artifact/BUILD-PROVENANCE.txt >> "$GITHUB_STEP_SUMMARY"
+          cat bluetooth-probe/artifact/SHA256SUMS >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Q50-BuiltIn-Bluetooth-Probe-APK-EPK
+          path: bluetooth-probe/artifact/
+          if-no-files-found: error
+          retention-days: 90
+  emulator:
+    needs: build
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: Q50-BuiltIn-Bluetooth-Probe-APK-EPK
+          path: bluetooth-probe/artifact
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 29
+          arch: x86
+          target: default
+          profile: Nexus S
+          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot
+          disable-animations: true
+          script: bash bluetooth-probe/tests/emulator.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Q50-BuiltIn-Bluetooth-Probe-Android
+          path: bluetooth-probe/artifact/android-probe/
+          if-no-files-found: error
+          retention-days: 90
