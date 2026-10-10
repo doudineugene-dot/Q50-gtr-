@@ -31,4 +31,13 @@ public final class ProbeIO {
             for(java.lang.reflect.Constructor<?> k:c.getDeclaredConstructors())s.append(k.toString()).append('\n');
         }catch(Throwable e){s.append(e.toString());}return s.toString();
     }
+    public static java.util.List<File> usbMounts(String mounts){
+        java.util.List<File> result=new java.util.ArrayList<File>();
+        for(String line:mounts.split("\n")){
+            String[] fields=line.trim().split(" +");if(fields.length<4)continue;
+            String type=fields[2],path=fields[1].replace("\\040"," ").replace("\\011","\t").replace("\\134","\\");
+            boolean usb=fields[0].startsWith("/dev/sd") && (type.equals("vfat") || type.equals("exfat") || type.equals("ntfs") || type.equals("fuseblk"));
+            if(usb && path.startsWith("/") && java.util.Arrays.asList(fields[3].split(",")).contains("rw"))result.add(new File(path));
+        }return result;
+    }
 }

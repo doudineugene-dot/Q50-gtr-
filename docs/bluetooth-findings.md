@@ -31,7 +31,7 @@ Package `ru.q50.ecutekprobe`, отдельный CI artifact
 сохранён. Proprietary APK этот observer не копирует; сохраняет path/UID/entry
 names для последующего разрешённого анализа. Live EcuTek gate не пройден.
 
-`codex-phase1/ProbeManifest.xml`, отдельный package ru.q50.codexprobe; API10 Java/DEX035/v1 signature. JNI x86/armeabi-v7a API9; x86_64 API21 для emulator. NDK r16b с официальным archive SHA1.
+`codex-phase1/probe/AndroidManifest.xml`, отдельный package ru.q50.codexprobe; API10 Java/DEX035/v1 signature. JNI x86/armeabi-v7a API9; x86_64 API21 для emulator. NDK r16b с официальным archive SHA1.
 
 - No UUID/PSM/ECU packet constants; no scan/pair/remote-connect/send, reset/root/USER-channel takeover.
 - JNI L2CAP/RFCOMM/HCI open/close + errno, local HCIGETDEVLIST/INFO и cached features/LE bit, L2CAP_OPTIONS/readlink. LE bit не доказывает CoC.

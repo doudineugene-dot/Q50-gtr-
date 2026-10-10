@@ -71,6 +71,8 @@ public final class ProbeService extends Service {
     }
     private void collect(){
         File report=new File(getFilesDir(),"dcu-bluetooth-report.txt");
+        File complete=new File(getFilesDir(),"COMPLETE");
+        if(complete.exists() && !complete.delete()){Log.e("Q50Probe","Cannot clear previous completion marker");stopSelf();return;}
         try {PrintWriter out=new PrintWriter(new OutputStreamWriter(new FileOutputStream(report),"UTF-8"));
             try {
                 section(out,"Q50 stock DCU probe v1",new Date()+"\nuid="+android.os.Process.myUid()+" pid="+android.os.Process.myPid()
@@ -109,7 +111,9 @@ public final class ProbeService extends Service {
                 }
                 capture.join(35000);section(out,"passive HCI",captureResult[0]);
                 section(out,"completion","COMPLETE; transport/ECUTEK_RPM/BOOST_ACTUAL remain UNPROVEN");
+                if(out.checkError())throw new IOException("Report write failed; no completion marker");
             }finally{out.close();}
+            FileOutputStream marker=new FileOutputStream(complete);marker.close();
             File external=Environment.getExternalStorageDirectory();
             try {copy(report,new File(external,"Q50-DCU-bluetooth-report.txt"));
                 File bundle=new File(external,"Q50-DCU-evidence");if(!bundle.exists() && !bundle.mkdirs())throw new IOException("Cannot create evidence directory");

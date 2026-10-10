@@ -13,7 +13,7 @@ JDK17 release7. Новая native часть: GET connection list и legacy RAW 
 request/response metadata. Тестовые пакеты — стандартные Bluetooth fixtures,
 не EcuTek data. Новая CI поставка будет зафиксирована после сборки ниже.
 
-Новый probe ru.q50.codexprobe, API10/10, Q50-Codex-EcuTek-Probe.apk/.epk. Только BLUETOOTH + WRITE_EXTERNAL_STORAGE; dashboard сохраняет zero permissions. Нет scan/pair/remote-connect/ECU-запросов. HCI RAW listener только читает, ограничен 30 сек/4096 пакетов; данные не выдаются за EVI RX/telemetry.
+Новый probe ru.q50.codexprobe, API10/10, Q50-Codex-DCU-Recon.apk/.epk. Только BLUETOOTH + WRITE_EXTERNAL_STORAGE; dashboard сохраняет zero permissions. Нет scan/pair/remote-connect/ECU-запросов. HCI RAW listener только читает, ограничен 30 сек/4096 пакетов; данные не выдаются за EVI RX/telemetry.
 
 Локально JDK27: девять ProbeChecks PASS. --release7 отсутствует в JDK27; Java7/API10 компиляция выполняется pinned JDK17 CI. Добавлены native fixtures: errno denial, returned controller ID, cached LE bit, L2CAP non-proof, закрытие FD, output boundary. Обязательны существующие 183 host checks, EPK crypto roundtrip и emulator workflow. Новый emulator check требует JNI load, три снимка, COMPLETE и export files, отсутствие FATAL EXCEPTION. Новый CI результат будет внесён после выполнения; старый successful run ниже не проверяет probe.
 

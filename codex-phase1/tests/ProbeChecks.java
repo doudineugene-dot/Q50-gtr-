@@ -11,6 +11,11 @@ public class ProbeChecks {
         check(ProbeIO.bounded(new ByteArrayInputStream(new byte[0]),100).equals(""));
         check(ProbeIO.read(new File("missing-probe-file")).startsWith("READ_FAILED"));
         check(ProbeIO.methods(ProbeIO.class).contains("bounded"));
+        check(ProbeIO.usbMounts("/dev/sda1 /mnt/usb vfat rw,nosuid 0 0").size()==1);
+        check(ProbeIO.usbMounts("/dev/sda1 /mnt/My\\040USB vfat rw 0 0").get(0).getPath().contains("My USB"));
+        check(ProbeIO.usbMounts("/dev/mmcblk0p1 /system vfat rw 0 0").isEmpty());
+        check(ProbeIO.usbMounts("/dev/sda1 /mnt/usb vfat ro 0 0").isEmpty());
+        check(ProbeIO.usbMounts("malformed input").isEmpty());
         System.out.println("PASS: "+count+" probe evidence boundary checks");
     }
 }

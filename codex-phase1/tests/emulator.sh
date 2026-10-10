@@ -77,7 +77,7 @@ adb shell pidof ru.q50.codex
 adb logcat -d > "$OUT/logcat.txt"
 if grep -q 'FATAL EXCEPTION' "$OUT/logcat.txt"; then exit 1; fi
 echo "PASS: Android API 29 emulator; measured View $SIZE; all 3 LIVE + DEMO pages, LIVE after DEMO, DIAG toggle, pause/resume; not an API 10/DCU test" | tee "$OUT/results.txt"
-adb install -r artifact/Q50-Codex-EcuTek-Probe.apk
+adb install -r artifact/Q50-Codex-DCU-Recon.apk
 adb shell pm grant ru.q50.codexprobe android.permission.WRITE_EXTERNAL_STORAGE
 adb shell am start -W -n ru.q50.codexprobe/ru.q50.codex.ProbeActivity
 adb shell input keyevent 66

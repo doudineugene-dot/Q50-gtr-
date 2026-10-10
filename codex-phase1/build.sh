@@ -9,7 +9,7 @@ fi
 echo '638a4f8a6f31cdfd40699cc0a7e2fe90057f52dab88a8224585aae08ca055d5f  .cache/android-2.3.3.jar' | sha256sum -c -
 MANIFEST=AndroidManifest.xml; PACKAGE=ru.q50.codex; BASENAME=Q50-Codex-Phase1; BLOCK=q50codex.apk
 if [ "${Q50_PROBE:-0}" = 1 ]; then
-  MANIFEST=ProbeManifest.xml; PACKAGE=ru.q50.codexprobe; BASENAME=Q50-Codex-EcuTek-Probe; BLOCK=q50probe.apk
+  MANIFEST=probe/AndroidManifest.xml; PACKAGE=ru.q50.codexprobe; BASENAME=Q50-Codex-DCU-Recon; BLOCK=q50probe.apk
 fi
 aapt package -f -M "$MANIFEST" -S res -I "$JAR" -J build/gen -F build/unsigned.apk
 if [ "${Q50_PROBE:-0}" = 1 ]; then

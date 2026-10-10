@@ -22,9 +22,11 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("mode", choices=["runs", "jobs", "artifacts", "download", "logs"])
     parser.add_argument("--id", type=int)
+    parser.add_argument("--workflow", default="codex-phase1.yml")
     args = parser.parse_args(); token = credential()
     if args.mode == "runs":
-        data = json.loads(request("/actions/workflows/codex-phase1.yml/runs?branch=codex%2Fphase1-from-zero&per_page=5", token))
+        if args.workflow not in ("codex-phase1.yml", "bluetooth-probe.yml"):raise ValueError("Unknown workflow")
+        data = json.loads(request("/actions/workflows/"+args.workflow+"/runs?branch=codex%2Fphase1-from-zero&per_page=5", token))
         for run in data["workflow_runs"]:
             print(json.dumps({k:run[k] for k in ("id", "head_sha", "status", "conclusion", "html_url")}, ensure_ascii=False))
     elif args.mode in ("jobs", "artifacts"):

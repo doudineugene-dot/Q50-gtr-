@@ -27,8 +27,8 @@ Therefore:
 ## Deliverable
 
 Create:
-- Q50-Codex-EcuTek-Probe.apk
-- Q50-Codex-EcuTek-Probe.epk
+- Q50-Codex-DCU-Recon.apk
+- Q50-Codex-DCU-Recon.epk
 
 Diagnostic UI must show:
 - EVI DISCOVERED
@@ -96,6 +96,6 @@ reassembly/LE CoC PSM/CID analysis и статический legacy x86 host hel
 Для следующего автомобильного теста использовать 90-секундный observer из
 артефакта **Q50-BuiltIn-Bluetooth-Probe-APK-EPK**. Live gate не изменён.
 
-Отдельный diagnostic APK/EPK: `codex-phase1/ProbeManifest.xml`, package `ru.q50.codexprobe`; сборка `Q50_PROBE=1 bash codex-phase1/build.sh`. Выход Q50-Codex-EcuTek-Probe.apk/.epk. Инструкция: `docs/DCU-PROBE-NEXT-TEST.md`.
+Отдельный diagnostic APK/EPK: `codex-phase1/probe/AndroidManifest.xml`, package `ru.q50.codexprobe`; сборка `Q50_PROBE=1 bash codex-phase1/build.sh`. Выход Q50-Codex-DCU-Recon.apk/.epk. Инструкция: `docs/DCU-PROBE-NEXT-TEST.md`.
 
 Транспорт/ECUTEK RPM/Boost остаются UNPROVEN. Не подтверждены UUID, получение динамического PSM, handshake и команды чтения. Probe собирает actual native HCI/socket/errno, vendor API signatures, PID/FD/maps, доступный VR30 APK и passive HCI. Это диагностическая поставка, не прохождение blocking milestone. Следующий код определяется этими артефактами, без внешнего BT и без ECU writes.
