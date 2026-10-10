@@ -1,5 +1,15 @@
 # EcuTek direct Bluetooth research — 2026-10-10
 
+## This iteration: checked sources and implemented evidence collector
+
+Official EcuTek revision/connection pages, Android API29 reference, Renesas CoC thread, linked Reddit leads and public Gen1 raw gists were checked again. The Renesas author name supports a lead but does not prove the chip/SDK/PSM-discovery mechanism used in R9. No verified public VR30 DASH APK/native binary/vendor Bluetooth API implementation was located. User's Samsung log22 is not present in tracked checkout; dynamic PSM evidence is retained as user-provided, never used as a constant.
+
+Public Gen1 artifacts reveal a host MeeGo/i686 environment plus Android processes, system DBus, naviwork tel_proc/ioapf_proc and Ygomi/Connexis packages. Linux v2.6.37's upstream L2CAP lacks LE CoC semantics: this makes a vendor backport or userspace/vendor host stack a concrete hypothesis. Neither controller support nor vendor transport on this DCU is proved by another unit's dump. See `bluetooth-findings.md` for immutable source links.
+
+Built a separate API10 recon APK/EPK with Java inventory, JNI socket/HCI capability/errno/features, passive HCI and PID/FD/maps correlation while VR30 DASH runs. It never connects/sends to EVI or interprets ECU data. `tools/inspect_bt_artifact.py` supports locally supplied APK/ELF string/hash analysis; `tools/dcu-host-probe.sh` handles missing host visibility only through an existing authorized shell. Smallest one-run test: `DCU-PROBE-NEXT-TEST.md`.
+
+Read-only EcuTek reproduction is still gated on actual vendor binding, dynamic PSM discovery and safe read/session command evidence, then RPM provenance/disconnect behavior, then Boost Actual units/meaning. No stock InTouch RPM is accepted as EcuTek success. External Bluetooth fallback language in older notes is superseded by the user's built-in-only constraint.
+
 ## Confirmed facts
 
 1. User's interface is EVI-BT R9. EcuTek's official support says revision 7 and above is **EVI-BTLE / Bluetooth Low Energy**.

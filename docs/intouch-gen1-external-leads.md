@@ -1,5 +1,13 @@
 # InTouch Gen1 external transport leads — 2026-10-10
 
+## Current scope correction and live verification
+
+The user requires **built-in stock DCU Bluetooth only**. All historical Path B/fallback prioritisation below is superseded; external dongles, phone/UDP bridges and mirroring are outside scope. No driver work or purchases are proposed.
+
+Re-read the linked replacement/root/custom-app posts on 2026-10-10. The replacement author is u/raisamarth; the post explicitly describes an external BT dongle and offers a future code release. Visible comments contain no downloadable source/APK/vendor library; a commenter names Virtual HDT/IVI but provides no Bluetooth signatures. The custom-app thread likewise says no GitHub repo yet. These are author reports, not stock EVI-BT R9 proof. The root post reports host SSH/serial/native binaries, but provides no verified VR30 transport artifact.
+
+More concrete primary artifacts were found in [nickfromstatefarm's 2022 Gen1 post](https://www.reddit.com/r/CarHacking/comments/tjls9z/): immutable process/USB/module dumps. Exact links and engineering consequences are recorded in `bluetooth-findings.md`; Android/host namespace separation is now a specific diagnostic target. Generic GitHub search hits IntRoot/InkRoot and virtyaluk/InTouch are unrelated notes/VK projects, excluded. Public searches for VR30 DASH/VR30DASH/0.5.4 did not locate a verified downloadable APK or its Bluetooth code.
+
 ## Verified Reddit lead: Full Intouch Gen-1 Replacement (Kinda)
 
 Source:

@@ -83,3 +83,9 @@ Immediate research priority:
 6. Only after those are proven, expand channels and then move to Air Lift.
 
 The final success gate remains real EcuTek RPM + Boost Actual on the stock DCU using the built-in Bluetooth subsystem only.
+
+## Итерация 2026-10-10
+
+Отдельный diagnostic APK/EPK: `codex-phase1/ProbeManifest.xml`, package `ru.q50.codexprobe`; сборка `Q50_PROBE=1 bash codex-phase1/build.sh`. Выход Q50-Codex-EcuTek-Probe.apk/.epk. Инструкция: `docs/DCU-PROBE-NEXT-TEST.md`.
+
+Транспорт/ECUTEK RPM/Boost остаются UNPROVEN. Не подтверждены UUID, получение динамического PSM, handshake и команды чтения. Probe собирает actual native HCI/socket/errno, vendor API signatures, PID/FD/maps, доступный VR30 APK и passive HCI. Это диагностическая поставка, не прохождение blocking milestone. Следующий код определяется этими артефактами, без внешнего BT и без ECU writes.

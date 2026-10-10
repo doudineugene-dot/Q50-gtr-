@@ -43,6 +43,7 @@ jobs:
             trap 'rm -f "$Q50_KEYSTORE"' EXIT
           fi
           bash codex-phase1/build.sh
+          Q50_PROBE=1 bash codex-phase1/build.sh
           cat codex-phase1/artifact/BUILD-PROVENANCE.txt >> "$GITHUB_STEP_SUMMARY"
           cat codex-phase1/artifact/SHA256SUMS >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4

@@ -7,7 +7,15 @@ if [ ! -f "$JAR" ]; then
   curl -fsSL https://repo.maven.apache.org/maven2/com/google/android/android/2.3.3/android-2.3.3.jar -o "$JAR"
 fi
 echo '638a4f8a6f31cdfd40699cc0a7e2fe90057f52dab88a8224585aae08ca055d5f  .cache/android-2.3.3.jar' | sha256sum -c -
-aapt package -f -M AndroidManifest.xml -S res -I "$JAR" -J build/gen -F build/unsigned.apk
+MANIFEST=AndroidManifest.xml; PACKAGE=ru.q50.codex; BASENAME=Q50-Codex-Phase1; BLOCK=q50codex.apk
+if [ "${Q50_PROBE:-0}" = 1 ]; then
+  MANIFEST=ProbeManifest.xml; PACKAGE=ru.q50.codexprobe; BASENAME=Q50-Codex-EcuTek-Probe; BLOCK=q50probe.apk
+fi
+aapt package -f -M "$MANIFEST" -S res -I "$JAR" -J build/gen -F build/unsigned.apk
+if [ "${Q50_PROBE:-0}" = 1 ]; then
+  bash native/build.sh
+  (cd build/native && find lib -name '*.so' -exec aapt add -f ../unsigned.apk '{}' \;)
+fi
 find src build/gen -name '*.java' | sort > build/java-sources.txt
 javac --release 7 -encoding UTF-8 -classpath "$JAR" -d build/classes @build/java-sources.txt
 find build/classes -name '*.class' | sort > build/dex-sources.txt
@@ -26,7 +34,7 @@ else
       -validity 10000 -dname 'CN=Q50 Codex Phase1 Prototype'
   fi
 fi
-APK=artifact/Q50-Codex-Phase1.apk
+APK="artifact/$BASENAME.apk"
 apksigner sign --ks "$KEYSTORE" --ks-key-alias "$Q50_KEY_ALIAS" --ks-pass env:Q50_KEY_PASS \
   --key-pass env:Q50_KEY_PASS --min-sdk-version 10 --v1-signing-enabled true \
   --v2-signing-enabled false --v3-signing-enabled false --out "$APK" build/aligned.apk
@@ -34,30 +42,38 @@ apksigner verify --min-sdk-version 10 --verbose --print-certs "$APK" | tee artif
 grep -q 'Verified using v1 scheme (JAR signing): true' artifact/signature.txt
 zipalign -c 4 "$APK"
 aapt dump badging "$APK" | tee artifact/badging.txt
-grep -q "package: name='ru.q50.codex'" artifact/badging.txt
+grep -q "package: name='$PACKAGE'" artifact/badging.txt
 grep -q "^sdkVersion:'10'" artifact/badging.txt
 grep -q "^targetSdkVersion:'10'" artifact/badging.txt
-# Reject accidental vehicle/network permissions in this UI-only phase.
-if grep -q '^uses-permission:' artifact/badging.txt; then exit 1; fi
-python3 - <<'PY'
+# Exact read-only diagnostic permission allowlist; no network/admin permissions.
+Q50_PROBE="${Q50_PROBE:-0}" python3 - <<'PY'
+import re
+import os
+text=open('artifact/badging.txt').read()
+expected={'android.permission.BLUETOOTH','android.permission.WRITE_EXTERNAL_STORAGE'} if os.environ['Q50_PROBE']=='1' else set()
+assert set(re.findall(r"uses-permission: name='([^']+)'",text))==expected
+PY
+Q50_APK="$APK" python3 - <<'PY'
 import zipfile
-data=zipfile.ZipFile('artifact/Q50-Codex-Phase1.apk').read('classes.dex')
+import os
+data=zipfile.ZipFile(os.environ['Q50_APK']).read('classes.dex')
 assert data[:8]==b'dex\n035\x00', 'API 10 requires legacy DEX 035'
 print('DEX 035 verified')
 PY
-python3 ../tools/epktool.py build "$APK" -o artifact/Q50-Codex-Phase1.epk \
-  --cert ../keys/obu_cert.pem --type 2 --name q50codex.apk
-python3 ../tools/epktool.py info artifact/Q50-Codex-Phase1.epk > artifact/epk-info.txt
-python3 ../tools/epktool.py verify artifact/Q50-Codex-Phase1.epk --expect-name q50codex.apk \
+python3 ../tools/epktool.py build "$APK" -o "artifact/$BASENAME.epk" \
+  --cert ../keys/obu_cert.pem --type 2 --name "$BLOCK"
+python3 ../tools/epktool.py info "artifact/$BASENAME.epk" > artifact/epk-info.txt
+python3 ../tools/epktool.py verify "artifact/$BASENAME.epk" --expect-name "$BLOCK" \
   --expect-type 2 --expect-blocks 1 --expect-key-size 128 | tee artifact/epk-verification.txt
 printf '%s\n' "$MODE" > artifact/signing-mode.txt
 {
   echo "commit=$(git rev-parse HEAD)"
   echo "branch=${GITHUB_REF_NAME:-$(git branch --show-current)}"
-  echo 'package=ru.q50.codex minSdk=10 targetSdk=10 version=1.0-phase1'
+  echo "package=$PACKAGE minSdk=10 targetSdk=10 manifest=$MANIFEST"
   echo "signing=$MODE"
   echo "run=${GITHUB_SERVER_URL:-https://github.com}/${GITHUB_REPOSITORY:-local}/actions/runs/${GITHUB_RUN_ID:-local}"
   java -version 2>&1
   aapt version; d8 --version; apksigner --version
 } > artifact/BUILD-PROVENANCE.txt
-(cd artifact && sha256sum Q50-Codex-Phase1.apk Q50-Codex-Phase1.epk > SHA256SUMS && sha256sum -c SHA256SUMS)
+(cd artifact && sha256sum "$BASENAME.apk" "$BASENAME.epk" > "$BASENAME-SHA256SUMS" && sha256sum -c "$BASENAME-SHA256SUMS")
+(cd artifact && sha256sum Q50-*.apk Q50-*.epk > SHA256SUMS)

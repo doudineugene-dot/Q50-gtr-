@@ -1,5 +1,13 @@
 # Отчёт — Q50 GTR+ Codex, Phase 1
 
+## Итерация EcuTek/DCU 2026-10-10
+
+Новый probe ru.q50.codexprobe, API10/10, Q50-Codex-EcuTek-Probe.apk/.epk. Только BLUETOOTH + WRITE_EXTERNAL_STORAGE; dashboard сохраняет zero permissions. Нет scan/pair/remote-connect/ECU-запросов. HCI RAW listener только читает, ограничен 30 сек/4096 пакетов; данные не выдаются за EVI RX/telemetry.
+
+Локально JDK27: девять ProbeChecks PASS. --release7 отсутствует в JDK27; Java7/API10 компиляция выполняется pinned JDK17 CI. Добавлены native fixtures: errno denial, returned controller ID, cached LE bit, L2CAP non-proof, закрытие FD, output boundary. Обязательны существующие 183 host checks, EPK crypto roundtrip и emulator workflow. Новый emulator check требует JNI load, три снимка, COMPLETE и export files, отсутствие FATAL EXCEPTION. Новый CI результат будет внесён после выполнения; старый successful run ниже не проверяет probe.
+
+Физический DCU/EVI не подключён к этой сессии. Discovery/connect, EVI PSM/CID/handle, RX rate, ECUTEK RPM/Boost не получены. log22.zip и VR30 DASH APK отсутствуют в tracked files; сведения пользователя не выдаются за собственные измерения.
+
 Первая фаза реализована с нуля: три русские Canvas-страницы, оригинальная графика, раздельные DEMO/LIVE, диагностика размеров/FPS, DataHub с VALID/STALE/UNAVAILABLE/ERROR и заготовками трёх источников. LIVE по умолчанию пуст; LPFP недоступен даже в DEMO.
 
 ## Сборка и артефакты

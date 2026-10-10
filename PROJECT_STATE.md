@@ -1,5 +1,13 @@
 # Q50 GTR+ Codex — состояние проекта
 
+## Итерация штатного Bluetooth / EcuTek 2026-10-10
+
+Добавлен отдельный diagnostic APK/EPK `ru.q50.codexprobe` (1.0-dcu-recon, API10/10). Dashboard сохраняет пакет и zero-permission manifest; probe не публикует значения в DataHub. CI собирает оба пакета. Публичные Gen1 дампы показывают MeeGo/i686 + Android, host DBus/naviwork daemons, Ygomi/Connexis packages и vendor bt_hci/bt_dfu. Это evidence другой установки, не идентификация радио данного автомобиля.
+
+Probe: JNI L2CAP/RFCOMM/HCI capability/errno, HCIGETDEVLIST/INFO, FD->socket/PID/maps, три снимка, passive RAW HCI без TX, inventory служб/framework/.so, доступный VR30 APK и shared-storage export. Нет automatic root или USER-channel takeover. HCI может быть скрыт vendor стеком либо недоступен UID; отсутствие пакетов не доказывает отсутствие Bluetooth. EVI transport, real ECUTEK RPM и Boost Actual **не доказаны**. Тест: `docs/DCU-PROBE-NEXT-TEST.md`. Исключены external dongles, phone/UDP bridge/mirroring.
+
+Ниже исторический отчёт Phase1: «фазы не начаты» и «zero permissions» относятся к dashboard до этой итерации, не к отдельному probe.
+
 Новая реализация по issue #11. Активный проект: `codex-phase1/`; пакет `ru.q50.codex`, версия `1.0-phase1`, minSdk/targetSdk 10/10.
 
 Фаза 1 реализована: три страницы Canvas, оригинальная графика, DEMO/LIVE, диагностика размеров/FPS, source-agnostic DataHub, APK/EPK workflow. Финальная сборка d970831, Actions run 38063990388: build и emulator SUCCESS, 183 host checks и восемь Android screenshots. Физический DCU ещё не проверен. Подробности и ссылки: `TEST_RESULTS.md`.

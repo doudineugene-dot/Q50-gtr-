@@ -77,3 +77,23 @@ adb shell pidof ru.q50.codex
 adb logcat -d > "$OUT/logcat.txt"
 if grep -q 'FATAL EXCEPTION' "$OUT/logcat.txt"; then exit 1; fi
 echo "PASS: Android API 29 emulator; measured View $SIZE; all 3 LIVE + DEMO pages, LIVE after DEMO, DIAG toggle, pause/resume; not an API 10/DCU test" | tee "$OUT/results.txt"
+adb install -r artifact/Q50-Codex-EcuTek-Probe.apk
+adb shell pm grant ru.q50.codexprobe android.permission.WRITE_EXTERNAL_STORAGE
+adb shell am start -W -n ru.q50.codexprobe/ru.q50.codex.ProbeActivity
+adb shell input keyevent 66
+sleep 2
+adb shell input keyevent 66
+for i in $(seq 1 30); do
+  adb logcat -d -s Q50Probe:I | grep -q 'COMPLETE ' && break
+  sleep 2
+done
+adb logcat -d -s Q50Probe:I | grep -q 'COMPLETE '
+adb pull /sdcard/Q50-DCU-bluetooth-report.txt "$OUT/dcu-bluetooth-report.txt"
+adb pull /sdcard/Q50-DCU-evidence/hci-passive.txt "$OUT/hci-passive.txt"
+grep -q 'native v1' "$OUT/dcu-bluetooth-report.txt"
+grep -q 'snapshot 2' "$OUT/dcu-bluetooth-report.txt"
+grep -q 'RPM/BOOST_ACTUAL remain UNPROVEN' "$OUT/dcu-bluetooth-report.txt"
+adb exec-out screencap -p > "$OUT/probe.png"
+adb logcat -d > "$OUT/logcat.txt"
+if grep -q 'FATAL EXCEPTION' "$OUT/logcat.txt"; then exit 1; fi
+echo 'PASS: dedicated probe lifecycle, JNI, 3 snapshots, passive HCI outcome, shared-storage export; no DCU/EVI proof' | tee "$OUT/probe-results.txt"
