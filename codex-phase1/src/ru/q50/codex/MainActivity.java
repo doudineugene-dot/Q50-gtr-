@@ -37,9 +37,16 @@ public final class MainActivity extends Activity {
         final TelemetrySource[] sources={new InTouchVehicleSource(),new EcuTekSource(),new AirLiftSource()};
         boolean active=false;
         long fpsStart=SystemClock.elapsedRealtime(); int frames=0;float fps=0;
+        final Runnable ticker=new Runnable(){
+            public void run(){if(active){invalidate();postDelayed(this,100);}}
+        };
         DashboardView(){super(MainActivity.this);setFocusable(true);}
-        void start(){fpsStart=SystemClock.elapsedRealtime();frames=0;for(int i=0;i<sources.length;i++)sources[i].start(live);}
-        void stop(){for(int i=0;i<sources.length;i++)sources[i].stop();}
+        void start(){
+            fpsStart=SystemClock.elapsedRealtime();frames=0;fps=0;
+            removeCallbacks(ticker);postDelayed(ticker,100);
+            for(int i=0;i<sources.length;i++)sources[i].start(live);
+        }
+        void stop(){removeCallbacks(ticker);for(int i=0;i<sources.length;i++)sources[i].stop();}
         protected void onSizeChanged(int w,int h,int ow,int oh){
             super.onSizeChanged(w,h,ow,oh);Log.i("Q50Codex","view="+w+"x"+h);
         }
@@ -54,7 +61,6 @@ public final class MainActivity extends Activity {
                 "  view "+getWidth()+"x"+getHeight()+"  canvas "+canvas.getWidth()+"x"+canvas.getHeight()+
                 "  FPS "+(int)(fps+.5f);
             surface.bind(canvas);scene.draw(surface,getWidth(),getHeight(),scene.demo?demo:live,now,dimensions);
-            if(active)postInvalidateDelayed(100);
         }
         public boolean onTouchEvent(MotionEvent event) {
             if(event.getAction()==MotionEvent.ACTION_UP) {
