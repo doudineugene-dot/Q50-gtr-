@@ -16,7 +16,7 @@ done
 for pid in /proc/[0-9]*; do
   [ -r "$pid/cmdline" ] || continue
   cmd=$(tr '\000' ' ' < "$pid/cmdline")
-  case "$cmd" in *bluetooth*|*bluez*|*ygomi*|*connexis*|*vr30*|*VR30*|*tel_proc*|*dbus*|*audio_ps*|*carwings*)
+  case "$cmd" in *bluetooth*|*bluez*|*ygomi*|*connexis*|*vr30*|*VR30*|*tel_proc*|*dbus*|*audio_ps*|*cMmp*|*BTASoundRouter*|*carwings*)
     echo "PID $pid $cmd" >> "$OUT/processes.txt"
     cat "$pid/status" "$pid/maps" >> "$OUT/processes.txt" 2>&1 || true
     ls -l "$pid/fd" "$pid/root" "$pid/exe" >> "$OUT/processes.txt" 2>&1 || true;;

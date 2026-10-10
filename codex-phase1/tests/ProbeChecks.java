@@ -16,6 +16,9 @@ public class ProbeChecks {
         check(ProbeIO.usbMounts("/dev/mmcblk0p1 /system vfat rw 0 0").isEmpty());
         check(ProbeIO.usbMounts("/dev/sda1 /mnt/usb vfat ro 0 0").isEmpty());
         check(ProbeIO.usbMounts("malformed input").isEmpty());
+        check(ProbeIO.relevant("/home/naviwork/system/bin/cMmpu"));
+        check(ProbeIO.relevant("BTASoundRouter"));
+        check(ProbeIO.relevant("audio_ps"));
         System.out.println("PASS: "+count+" probe evidence boundary checks");
     }
 }

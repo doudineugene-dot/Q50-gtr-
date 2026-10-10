@@ -49,10 +49,10 @@ static void capability(char *out,size_t size,int type,int protocol,const char *n
                 }
             }
         }
-        if(protocol==BT_L2CAP){unsigned char opts[64];socklen_t len=sizeof(opts);
+        if(protocol==BT_L2CAP){unsigned char opts[64]={0};socklen_t len=sizeof(opts);
             int r=getsockopt(fd,6,1,opts,&len);error=r<0?errno:0;
             append(out,size,"L2CAP_OPTIONS result=%d errno=%d length=%u raw=",r,error,(unsigned)len);
-            if(r>=0)for(unsigned i=0;i<len && i<sizeof(opts);i++)append(out,size,"%02x",opts[i]);
+            if(r>=0)for(unsigned i=0;i<(unsigned)len && i<sizeof(opts);i++)append(out,size,"%02x",opts[i]);
             append(out,size,"\nSocket success does not prove LE CoC support.\n");
         }close(fd);
     }

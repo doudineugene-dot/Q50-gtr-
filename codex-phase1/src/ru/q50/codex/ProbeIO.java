@@ -11,7 +11,8 @@ public final class ProbeIO {
         return n.indexOf("bluetooth")>=0 || n.indexOf("bluez")>=0 || n.indexOf("bt_")>=0
             || n.indexOf("ygomi")>=0 || n.indexOf("connexis")>=0 || n.indexOf("ecutek")>=0
             || n.indexOf("vr30")>=0 || n.indexOf("dash")>=0 || n.indexOf("carwings")>=0
-            || n.indexOf("dbus")>=0 || n.indexOf("tel_proc")>=0 || n.indexOf("hci")>=0;
+            || n.indexOf("dbus")>=0 || n.indexOf("tel_proc")>=0 || n.indexOf("hci")>=0
+            || n.indexOf("audio_ps")>=0 || n.indexOf("cmmp")>=0 || n.indexOf("btasoundrouter")>=0;
     }
     public static String read(File f) {
         try {
