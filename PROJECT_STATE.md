@@ -2,7 +2,7 @@
 
 Новая реализация по issue #11. Активный проект: `codex-phase1/`; пакет `ru.q50.codex`, версия `1.0-phase1`, minSdk/targetSdk 10/10.
 
-Фаза 1 реализована: три страницы Canvas, оригинальная графика, DEMO/LIVE, диагностика размеров/FPS, source-agnostic DataHub, APK/EPK workflow. Статус проверок и ссылки на сборку: `TEST_RESULTS.md`.
+Фаза 1 реализована: три страницы Canvas, оригинальная графика, DEMO/LIVE, диагностика размеров/FPS, source-agnostic DataHub, APK/EPK workflow. Финальная сборка d970831, Actions run 38063990388: build и emulator SUCCESS, 183 host checks и восемь Android screenshots. Физический DCU ещё не проверен. Подробности и ссылки: `TEST_RESULTS.md`.
 
 LIVE запускается по умолчанию. InTouch/EcuTek/AirLift пока только адаптеры-заготовки, публикующие ноль значений. DEMO синтетический, выделен цветом и подписью на каждом доступном значении. LPFP недоступен в обоих режимах.
 
