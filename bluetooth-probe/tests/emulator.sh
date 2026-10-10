@@ -9,18 +9,26 @@ adb logcat -c
 adb shell am start -W -n ru.q50.ecutekprobe/.ProbeActivity --ei seconds 5
 sleep 3
 adb shell input keyevent 66
-adb shell uiautomator dump /sdcard/probe-ui.xml
-adb pull /sdcard/probe-ui.xml "$OUT/ui.xml"
-if grep -q 'android:id/button1' "$OUT/ui.xml"; then
-  read -r X Y < <(python3 - "$OUT/ui.xml" <<'PY'
+for attempt in 1 2 3 4; do
+  adb shell uiautomator dump /sdcard/probe-ui.xml
+  adb pull /sdcard/probe-ui.xml "$OUT/ui-$attempt.xml"
+  BUTTON=$(python3 - "$OUT/ui-$attempt.xml" <<'PY'
 import re,sys,xml.etree.ElementTree as ET
 for node in ET.parse(sys.argv[1]).iter('node'):
-    if node.get('resource-id')=='android:id/button1':
+    if node.get('resource-id') in ('com.android.permissioncontroller:id/continue_button','android:id/button1'):
         a,b,c,d=map(int,re.findall(r'\d+',node.get('bounds')));print((a+c)//2,(b+d)//2);break
 PY
   )
+  [ -n "$BUTTON" ] || break
+  read -r X Y <<< "$BUTTON"
   adb shell input tap "$X" "$Y"
-fi
+  sleep 2
+done
+# Relaunch with the test interval after system dialogs so the background test
+# starts in the application, not in ReviewPermissionsActivity.
+adb logcat -c
+adb shell am start -W -n ru.q50.ecutekprobe/.ProbeActivity --ei seconds 5
+sleep 1
 adb shell input keyevent 3
 for n in $(seq 1 45); do
   if adb logcat -d -s Q50BtProbe:I | grep -q 'COMPLETE '; then break; fi
