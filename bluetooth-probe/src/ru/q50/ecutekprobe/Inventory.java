@@ -64,12 +64,16 @@ final class Inventory {
             if(!pid.getName().matches("[0-9]+"))continue;
             String cmd=EvidenceIO.file(new File(pid,"cmdline").getPath());
             if(!relevant(cmd) && !pid.getName().equals("1"))continue;
-            if(++inspected>64){out.append("[PROCESS LIMIT]\n");break;}
+            if(++inspected>64 || out.length()>1048576){out.append("[PROCESS/AGGREGATE LIMIT]\n");break;}
             out.append("\nPID ").append(pid.getName()).append(" CMD ").append(cmd).append("\n");
-            for(String leaf:new String[]{"status","maps"})out.append(leaf).append("\n").append(EvidenceIO.file(new File(pid,leaf).getPath()));
+            for(String leaf:new String[]{"status","maps"}) {
+                out.append(leaf).append("\n");
+                try {out.append(EvidenceIO.read(new File(pid,leaf),65536));}
+                catch(IOException e){out.append("[UNREADABLE] ").append(e).append("\n");}
+            }
             File[] fds=new File(pid,"fd").listFiles();
             if(fds==null)out.append("[FD UNREADABLE]\n");
-            else if(NativeProbe.loadError==null)for(int i=0;i<fds.length && i<256;i++)out.append("fd ").append(fds[i].getName()).append(" -> ").append(NativeProbe.readLink(fds[i].getPath())).append("\n");
+            else if(NativeProbe.loadError==null)for(int i=0;i<fds.length && i<256 && out.length()<1048576;i++)out.append("fd ").append(fds[i].getName()).append(" -> ").append(NativeProbe.readLink(fds[i].getPath())).append("\n");
             else out.append("[JNI readlink unavailable]\n");
             if(NativeProbe.loadError==null)out.append("root -> ").append(NativeProbe.readLink(new File(pid,"root").getPath())).append("\n");
         }

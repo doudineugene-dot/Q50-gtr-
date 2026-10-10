@@ -3,6 +3,7 @@
     <uses-sdk android:minSdkVersion="10" android:targetSdkVersion="10" />
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
     <application android:label="Q50 EcuTek Probe" android:icon="@drawable/icon" android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" android:debuggable="false">
         <activity android:name=".ProbeActivity" android:screenOrientation="landscape" android:configChanges="orientation|keyboardHidden">
             <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>

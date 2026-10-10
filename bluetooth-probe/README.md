@@ -32,6 +32,9 @@ EVI connection, or RPM without independent peer/protocol evidence. Cached LE
 bit does not establish usable CoC; a local L2CAP socket does not establish LE
 support; generic controller RX counters include other Bluetooth traffic.
 
+Process-map text is capped per PID (64KiB) and in aggregate (~1MiB) to avoid
+large StringBuilder allocations on a legacy app heap. Every limit is recorded.
+
 Archives may contain device addresses, app metadata and Bluetooth payloads.
 Keep these local; the probe has no Internet permission and does not upload.
 It does not copy proprietary APKs, pairing key stores or phone databases.

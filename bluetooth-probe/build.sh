@@ -44,9 +44,15 @@ grep -q "package: name='ru.q50.ecutekprobe'" artifact/badging.txt
 grep -q "^sdkVersion:'10'" artifact/badging.txt
 grep -q "^targetSdkVersion:'10'" artifact/badging.txt
 python3 - <<'PY'
-import re, zipfile
+import re, zipfile, xml.etree.ElementTree as ET
 data=open('artifact/badging.txt').read()
-assert set(re.findall(r"uses-permission: name='([^']+)'",data))=={'android.permission.BLUETOOTH','android.permission.WRITE_EXTERNAL_STORAGE'}
+expected={'android.permission.BLUETOOTH','android.permission.WRITE_EXTERNAL_STORAGE'}
+declared={e.attrib['{http://schemas.android.com/apk/res/android}name'] for e in ET.parse('AndroidManifest.xml').getroot().findall('uses-permission')}
+assert declared==expected, 'unexpected declared permission'
+observed=set(re.findall(r"^uses-permission: name='([^']+)'",data,re.M))
+assert expected <= observed <= expected|{'android.permission.READ_EXTERNAL_STORAGE'}
+if 'android.permission.READ_EXTERNAL_STORAGE' in observed:
+    assert "uses-implied-permission: name='android.permission.READ_EXTERNAL_STORAGE' reason='requested WRITE_EXTERNAL_STORAGE'" in data
 with zipfile.ZipFile('artifact/Q50-Codex-EcuTek-Probe.apk') as z:
     assert z.read('classes.dex')[:8]==b'dex\n035\x00'
     for abi,machine in [('x86',3),('armeabi-v7a',40)]:
