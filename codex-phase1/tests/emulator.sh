@@ -11,6 +11,15 @@ adb install -r artifact/Q50-Codex-Phase1.apk
 adb logcat -c
 adb shell am start -W -n ru.q50.codex/.MainActivity
 sleep 3
+# API 29 shows its system warning for targetSdk 10 on first launch. Dismiss
+# that dialog before testing application touches; never raise the app target.
+adb shell input keyevent 66
+sleep 1
+adb shell dumpsys window windows > "$OUT/window-start.txt"
+if grep -E 'mCurrentFocus=.*DeprecatedTargetSdkVersionDialog' "$OUT/window-start.txt"; then
+  adb shell input keyevent 66
+  sleep 1
+fi
 # Use actual measured content dimensions, rather than assuming navigation bar size.
 SIZE=$(adb logcat -d -s Q50Codex:I | sed -n 's/.*view=\([0-9]*x[0-9]*\).*/\1/p' | tail -1)
 [ -n "$SIZE" ]

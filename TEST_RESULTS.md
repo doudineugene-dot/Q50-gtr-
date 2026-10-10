@@ -4,4 +4,8 @@
 
 EPK roundtrip с одноразовой тестовой парой RSA-1024 восстановил payload byte-for-byte. Реальный OBU private key не используется.
 
-CI и Android emulator: ожидается запуск; окончательные ссылки и результат добавляются после успешных jobs. APK должен пройти package/minSdk/targetSdk, отсутствие permissions, v1 signature, zipalign и DEX035 checks; EPK — строгую проверку раскладки. Приложение не устанавливалось на автомобиль. Настоящая телеметрия и Bluetooth в фазе 1 отсутствуют.
+Первый CI run 38063126176: build прошёл полностью, 183 host checks, APK 16184 bytes, EPK 16592 bytes, minSdk/targetSdk 10/10, DEX035, v1 подпись, отсутствие permissions, zipalign, 16 проверок EPK. Подпись persistent; fingerprint совпал с release-signing-cert.sha256.
+
+Первая попытка Android API 29 emulator показала настоящий LIVE-screen 840×480 без crash. Автоматический touch-test остановился: первый tap перехватил системный DeprecatedTargetSdkVersionDialog для targetSdk10, а не View приложения. В тест добавлено явное закрытие предупреждения клавишей ENTER перед касаниями; targetSdk приложения не меняется. Окончательные ссылки и результат повторной проверки добавляются после успешных jobs.
+
+Приложение не устанавливалось на автомобиль. Настоящая телеметрия и Bluetooth в фазе 1 отсутствуют.
