@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+set -x
 cd "$(dirname "$0")/.."
 OUT=artifact/android-captures
 mkdir -p "$OUT"
@@ -28,6 +29,28 @@ S=$(awk -v w="$W" -v h="$H" 'BEGIN {a=w/840;b=h/480;print a<b?a:b}')
 TAB_Y=$(awk -v h="$H" -v s="$S" 'BEGIN {printf "%.0f",h-28*s}')
 MODE_X=$(awk -v w="$W" -v s="$S" 'BEGIN {printf "%.0f",w-120*s}')
 TOP_Y=$(awk -v s="$S" 'BEGIN {printf "%.0f",26*s}')
+# Some API 29 images leave the non-focusable compatibility warning after
+# ENTER. A tap outside dismisses it. Use the already selected engine tab,
+# so the same tap is harmless if the dialog was already dismissed.
+FIRST_X=$(awk -v w="$W" -v s="$S" 'BEGIN {printf "%.0f",12*s+(w-24*s)/6}')
+adb shell input tap "$FIRST_X" "$TAB_Y"
+sleep 2
+adb shell uiautomator dump /sdcard/q50-start.xml
+adb pull /sdcard/q50-start.xml "$OUT/window-start.xml"
+if grep -q 'android:id/button1' "$OUT/window-start.xml"; then
+  # Close the actual positive system-dialog button using its measured bounds.
+  read -r BX BY < <(python3 - "$OUT/window-start.xml" <<'PY'
+import re, sys, xml.etree.ElementTree as ET
+for node in ET.parse(sys.argv[1]).iter('node'):
+    if node.get('resource-id') == 'android:id/button1':
+        x1,y1,x2,y2=map(int,re.findall(r'\d+',node.get('bounds')))
+        print((x1+x2)//2,(y1+y2)//2)
+        break
+PY
+  )
+  adb shell input tap "$BX" "$BY"
+  sleep 1
+fi
 for mode in live demo; do
   for page in 0 1 2; do
     X=$(awk -v w="$W" -v s="$S" -v p="$page" 'BEGIN {printf "%.0f",12*s+(w-24*s)/3*(p+0.5)}')
