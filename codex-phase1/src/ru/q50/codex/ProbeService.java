@@ -29,7 +29,7 @@ public final class ProbeService extends Service {
         }out.flush();
     }
     private void command(PrintWriter out,final String[] argv){
-        final StringBuilder result=new StringBuilder();final Process[] process=new Process[1];
+        final StringBuilder result=new StringBuilder();final java.lang.Process[] process=new java.lang.Process[1];
         Thread t=new Thread(new Runnable(){public void run(){try{
             process[0]=new ProcessBuilder(argv).redirectErrorStream(true).start();
             result.append(ProbeIO.bounded(process[0].getInputStream(),ProbeIO.LIMIT));

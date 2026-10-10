@@ -12,7 +12,9 @@ def credential():
 
 def request(path, token):
     req = urllib.request.Request("https://api.github.com/repos/" + REPO + path,
-        headers={"Authorization": "Bearer " + token, "Accept": "application/vnd.github+json", "User-Agent": "Q50-recon"})
+        headers={"Accept": "application/vnd.github+json", "User-Agent": "Q50-recon"})
+    # GitHub redirects logs/artifacts to signed storage URLs; never forward the token.
+    req.add_unredirected_header("Authorization", "Bearer " + token)
     with urllib.request.urlopen(req, timeout=60) as response:
         return response.read()
 
