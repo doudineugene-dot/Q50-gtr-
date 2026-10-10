@@ -1,0 +1,17 @@
+# Архитектура Codex Phase 1
+
+Чистый проект `codex-phase1/`, пакет `ru.q50.codex`. Android 2.3.7 / API 10 — основной контракт. Только Java и framework Canvas/View; нет Gradle, AndroidX, Compose, WebView, JNI, библиотек приложения или доступа к автомобилю.
+
+`MainActivity` управляет жизненным циклом, сохраняет вкладку/режим/диагностику в Bundle при пересоздании Activity. Холодный запуск всегда LIVE. `DashboardRenderer` содержит единый исходный векторный рисунок и геометрию касаний. `Surface` изолирует примитивы: `CanvasSurface` рисует нативным Android Canvas; `HostChecks.Java2DSurface` исполняет тот же production-renderer на компьютере для render captures. Изображения Java2D не выдаются за скриншоты Android или автомобиля.
+
+Все координаты масштабируются единым коэффициентом `min(width/840,height/480)`. Логические ширина и высота вычисляются из реального View, свободное пространство распределяется между приборами. Радиус ограничен как шириной, так и доступной высотой; круги никогда не растягиваются по одной оси. Проверяемые размеры: 640×480, 840×480, 1024×600, 1280×720. Приложение фиксирует landscape. Минимальные размеры вне этого набора не сертифицированы.
+
+DataHub принимает Sample(value, timestamp, source, quality). Время — `SystemClock.elapsedRealtime()`. VALID после 2000 ms становится STALE, после 10000 ms UNAVAILABLE. Новое значение с более старой меткой не заменяет свежее; NaN/Infinity в VALID отвергаются. STALE отображает последнюю цифру с явной маркировкой и возрастом; UNAVAILABLE/ERROR выводят прочерк. Приоритет RPM/speed: свежий EcuTek, свежий InTouch, затем устаревший допустимый источник. Knock — только EcuTek; давления воздуха — только AirLift. Остальные каналы пока не имеют доказанных LIVE-маршрутов.
+
+Два раздельных DataHub: `live(false)` и `demo(true)`. Проверка границы на publish исключает попадание DEMO в LIVE и наоборот. Synthetic generator вызывается только при DEMO. При переключении выбирается другой hub; на холодном старте LIVE пуст. LPFP не генерируется даже в DEMO. Отсутствующие дополнительные каналы не отображаются.
+
+InTouchVehicleSource, EcuTekSource и AirLiftSource реализуют общий контракт start/stop/status без транспорта. Это заготовки следующих фаз, а не действующая телеметрия. Activity вызывает start/stop вместе с resume/pause. Отрисовка ограничена postInvalidateDelayed(100), около 10 FPS; во время паузы обновление не планируется. FPS рассчитывается по фактически выполненным onDraw за монотонный интервал. DIAG сообщает DisplayMetrics экрана, размеры decor View окна, текущего View и Canvas.
+
+CI компилирует против Android 2.3.3 API 10 jar с зафиксированной SHA-256; JDK 17 `--release 7`, d8 min-api 10, DEX 035, v1 SHA1-совместимая подпись через apksigner min-sdk 10. Java API ограничен доступными в старом libcore Map/HashMap, Math, String/Locale и примитивами. Работа на физическом API 10 остаётся обязательным отдельным тестом.
+
+EPK: переиспользуется только независимый упаковщик `tools/epktool.py`, публичный сертификат и описанный в `docs/epk-format.md` формат; имя внутри `q50codex.apk`, type 2, один блок, RSA-1024. CI выполняет проверку раскладки и отдельный roundtrip с одноразовой тестовой парой RSA. Приватный OBU-ключ не нужен и не используется. В отчёте фиксируются commit, signing mode, fingerprint, SHA256 и workflow run.

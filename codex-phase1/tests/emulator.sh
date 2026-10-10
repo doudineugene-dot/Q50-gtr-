@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+OUT=artifact/android-captures
+mkdir -p "$OUT"
+trap 'adb logcat -d > "$OUT/logcat.txt"' EXIT
+adb shell wm size 840x480
+adb shell wm density 160
+adb shell settings put global policy_control immersive.full=*
+adb install -r artifact/Q50-Codex-Phase1.apk
+adb logcat -c
+adb shell am start -W -n ru.q50.codex/.MainActivity
+sleep 3
+# Use actual measured content dimensions, rather than assuming navigation bar size.
+SIZE=$(adb logcat -d -s Q50Codex:I | sed -n 's/.*view=\([0-9]*x[0-9]*\).*/\1/p' | tail -1)
+[ -n "$SIZE" ]
+W=${SIZE%x*}; H=${SIZE#*x}
+S=$(awk -v w="$W" -v h="$H" 'BEGIN {a=w/840;b=h/480;print a<b?a:b}')
+TAB_Y=$(awk -v h="$H" -v s="$S" 'BEGIN {printf "%.0f",h-28*s}')
+MODE_X=$(awk -v w="$W" -v s="$S" 'BEGIN {printf "%.0f",w-120*s}')
+TOP_Y=$(awk -v s="$S" 'BEGIN {printf "%.0f",26*s}')
+for mode in live demo; do
+  for page in 0 1 2; do
+    X=$(awk -v w="$W" -v s="$S" -v p="$page" 'BEGIN {printf "%.0f",12*s+(w-24*s)/3*(p+0.5)}')
+    adb shell input tap "$X" "$TAB_Y"
+    sleep 1
+    adb exec-out screencap -p > "$OUT/$mode-$page.png"
+    adb logcat -d -s Q50Codex:I | grep -q "page=$page mode=$(echo "$mode" | tr a-z A-Z)"
+  done
+  adb shell input tap "$MODE_X" "$TOP_Y"
+  sleep 1
+done
+# Return to LIVE after DEMO, then toggle diagnostics and verify lifecycle resume.
+adb logcat -d -s Q50Codex:I | tail -1 | grep -q 'mode=LIVE'
+adb exec-out screencap -p > "$OUT/live-after-demo.png"
+DIAG_X=$(awk -v w="$W" -v s="$S" 'BEGIN {printf "%.0f",w-35*s}')
+adb shell input tap "$DIAG_X" "$TOP_Y"
+sleep 1
+adb logcat -d -s Q50Codex:I | tail -1 | grep -q 'diag=false'
+adb exec-out screencap -p > "$OUT/live-diag-off.png"
+adb shell input keyevent 3
+adb shell am start -W -n ru.q50.codex/.MainActivity
+sleep 1
+adb shell pidof ru.q50.codex
+adb logcat -d > "$OUT/logcat.txt"
+if grep -q 'FATAL EXCEPTION' "$OUT/logcat.txt"; then exit 1; fi
+echo "PASS: Android API 29 emulator; measured View $SIZE; all 3 LIVE + DEMO pages, LIVE after DEMO, DIAG toggle, pause/resume; not an API 10/DCU test" | tee "$OUT/results.txt"
